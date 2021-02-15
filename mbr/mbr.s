@@ -11,6 +11,8 @@ SECTION MBR vstart=0x7c00
     mov ss, ax
     mov fs, ax
     mov sp, 0x7c00
+    mov ax, 0xb800
+    mov gs, ax
 
 ; 执行清屏操作，功能号为0x6
     mov ax, 0x600
@@ -20,26 +22,25 @@ SECTION MBR vstart=0x7c00
     
     int 0x10
 
-; 获取光标位置，功能号为0x3
-    mov ah, 3
-    mov bh, 0
+; 写入打印字符串到缓存
+    mov byte [gs:0x00], '1'
+    mov byte [gs:0x01], 0xA4
 
-    int 0x10
+    mov byte [gs:0x02], ' '
+    mov byte [gs:0x03], 0xA4
+    
+    mov byte [gs:0x04], 'M'
+    mov byte [gs:0x05], 0xA4
+    
+    mov byte [gs:0x06], 'B'
+    mov byte [gs:0x07], 0xA4
 
-; 打印字符串，功能号为0x13
-    mov ax, message
-    mov bp, ax
-    mov bx, 0x2
-    ; 字符串长度
-    mov cx, 5
-    mov ax, 0x1301 ; al设置成0x01表示光标跟随移动
-    mov bx, 0x2
-    int 0x10
+    mov byte [gs:0x08], 'R'
+    mov byte [gs:0x09], 0xA4
 
 ; 系统不断循环等待
     jmp $
 
 ; 数据定义
-    message db "1 MBR"
     times 510-($-$$) db 0
     db 0x55, 0xaa
