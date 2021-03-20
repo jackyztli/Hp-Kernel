@@ -1,8 +1,3 @@
-/*
- *  Hp-Kernel/mbr/mbr.s
- *
- *  (C) 2021  Jacky li
- */
 %include "boot.def"
 ;执行到这里，硬件默认设置cs为0，ip为0x7c00
 SECTION MBR vstart=MBR_BASE_ADDR
@@ -45,7 +40,7 @@ SECTION MBR vstart=MBR_BASE_ADDR
     mov cx, LOADER_SECTOR_NUM          ; loader在硬盘中占的扇区
     call read_disk_m_16                ; 读取硬盘
 
-; 系统不断循环等待
+; 执行loader程序
     jmp LOADER_BASE_ADDR               ; 执行loader
 
 ; 从硬盘读取n个扇区，eax=LBA扇区号，bx是数据写入的内存地址，cx是读取扇区数
