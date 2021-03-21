@@ -15,7 +15,7 @@ SECTION MBR vstart=MBR_BASE_ADDR
     mov bx, 0x700
     mov cx, 0
     mov dx, 0x184f
-    
+
     int 0x10
 
 ; 写入打印字符串到缓存
@@ -24,10 +24,10 @@ SECTION MBR vstart=MBR_BASE_ADDR
 
     mov byte [gs:0x02], ' '
     mov byte [gs:0x03], 0xA4
-    
+
     mov byte [gs:0x04], 'M'
     mov byte [gs:0x05], 0xA4
-    
+
     mov byte [gs:0x06], 'B'
     mov byte [gs:0x07], 0xA4
 
@@ -38,13 +38,13 @@ SECTION MBR vstart=MBR_BASE_ADDR
     mov eax, LOADER_START_SECTOR       ; 读取硬盘LBA值存放在eax
     mov bx, LOADER_BASE_ADDR           ; loader的加载的地址存放在bx
     mov cx, LOADER_SECTOR_NUM          ; loader在硬盘中占的扇区
-    call read_disk_m_16                ; 读取硬盘
+    call .read_disk_m_16                ; 读取硬盘
 
 ; 执行loader程序
     jmp LOADER_BASE_ADDR               ; 执行loader
 
 ; 从硬盘读取n个扇区，eax=LBA扇区号，bx是数据写入的内存地址，cx是读取扇区数
-read_disk_m_16:
+.read_disk_m_16:
     mov esi, eax                       ; 备份eax，后面in/out的操作会修改ax
     mov di, cx                         ; 备份cx
 
@@ -97,7 +97,7 @@ read_disk_m_16:
     mov dx, 0x1f0                      ; data端口是0x1f0
 .start_to_read_disk:
     in ax, dx
-    mov [bx], ax                       ; 读取到bx内存中
+    mov [bx], ax                       ; 读取到ebx内存中
     add bx, 2
     loop .start_to_read_disk
     ret
