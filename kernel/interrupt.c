@@ -6,8 +6,8 @@
 
 #include "interrupt.h"
 #include "stdint.h"
+#include "kernel/io.h"
 #include "lib/print.h"
-#include "io.h"
 
 /* 当前支持的中断数 */
 #define IDT_DESC_CNT 0x21
