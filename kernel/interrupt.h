@@ -36,4 +36,17 @@ typedef void * intr_handler;
 /* 中断初始化入口函数 */
 void Idt_Init(void);
 
+/* 中断状态相关定义 */
+typedef enum {
+    INTR_OFF,             /* 当前为关中断状态 */
+    INTR_ON               /* 当前为开中断状态 */
+} IntrStatus;
+
+/* 获取当前中断状态 */
+IntrStatus Idt_GetIntrStatus(void);
+/* 开中断 */
+IntrStatus Idt_IntrEnable(void);
+/* 关中断 */
+IntrStatus Idt_IntrDisable(void);
+
 #endif

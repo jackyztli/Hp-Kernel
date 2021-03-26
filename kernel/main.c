@@ -5,6 +5,7 @@
  */
 
 #include "lib/print.h"
+#include "kernel/panic.h"
 #include "kernel/interrupt.h"
 #include "kernel/device/timer.h"
 
@@ -19,6 +20,8 @@ int main()
 
 	/* 调整时钟中断周期 */
 	Timer_Init();
+
+	ASSERT(1 == 2);
 
 	while (1) {
 	

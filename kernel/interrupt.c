@@ -18,6 +18,8 @@
 #define PIC_S_CTRL 0xa0             /* 从片控制端口为0xa0 */
 #define PIC_S_DATA 0xa1             /* 从片数据端口为0xa1 */
 
+#define EFLAGS_IF 0x00000200        /* eflags中的if位在第9位 */
+
 /* 中断门描述符结构体 */
 typedef struct {
     uint16_t func_offset_low_word;
@@ -140,6 +142,38 @@ static void Idt_IdtTableInit(void)
     intr_name[19] = "#XF SIMD Floating-Point Exception";
     
     return;
+}
+
+/* 获取当前中断状态 */
+IntrStatus Idt_GetIntrStatus(void)
+{
+    uint32_t eflags = 0;
+    __asm__ volatile("pushfl; popl %0" : "=g"(eflags));
+    return (eflags & EFLAGS_IF) ? INTR_ON : INTR_OFF;
+}
+
+/* 开中断 */
+IntrStatus Idt_IntrEnable(void)
+{
+    if (Idt_GetIntrStatus() == INTR_ON) {
+        return INTR_ON;
+    }
+
+    __asm__ volatile("sti");
+
+    return INTR_OFF;
+}
+
+/* 关中断 */
+IntrStatus Idt_IntrDisable(void)
+{
+    if (Idt_GetIntrStatus() == INTR_OFF) {
+        return INTR_OFF;
+    }
+
+    __asm__ volatile("cli": : :"memory");
+
+    return INTR_ON;
 }
 
 /* 中断初始化入口函数 */
