@@ -8,6 +8,7 @@
 #include "kernel/panic.h"
 #include "kernel/interrupt.h"
 #include "kernel/device/timer.h"
+#include "kernel/memory.h"
 
 int main()
 {
@@ -21,7 +22,17 @@ int main()
 	/* 调整时钟中断周期 */
 	Timer_Init();
 
-	ASSERT(1 == 2);
+	/* 初始化内存管理模块 */
+	Mem_Init();
+
+	/* 申请3内核页测试 */
+	put_str("Mem_GetKernelPages1 start addr is ");
+	put_int((uintptr_t)Mem_GetKernelPages(3));
+	put_str("\n");
+
+	put_str("Mem_GetKernelPages2 start addr is ");
+	put_int((uintptr_t)Mem_GetKernelPages(5));
+	put_str("\n");
 
 	while (1) {
 	

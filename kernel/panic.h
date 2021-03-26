@@ -9,7 +9,7 @@
 
 #include "stdint.h"
 
-void panic(const char *fileName, const char *fileLine, const char *funcName, const char *condition);
+void panic(const char *fileName, uint32_t fileLine, const char *funcName, const char *condition);
 
 #ifdef DEBUG_KERNEL
     #define ASSERT(CONDITION) ((void)0)

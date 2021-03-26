@@ -105,10 +105,6 @@ static void Idt_GeneralIntrHendler(uint8_t vecNr)
         return;
     }
 
-    put_str("int vector : 0x");
-    put_int(vecNr);
-    put_char('\n');
-
     return;
 }
 
