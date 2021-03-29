@@ -20,3 +20,17 @@ void memset(void *dst, uint8_t value, uint32_t size)
 
     return; 
 }
+
+/* 源字符串拷贝到目的字符串 */
+void strcpy(char *dst, const char *src)
+{
+    ASSERT((dst != NULL) && (src != NULL));
+
+    while (*src != '\0') {
+        *dst = *src;
+        dst++;
+        src++;
+    }
+
+    return; 
+}

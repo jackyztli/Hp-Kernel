@@ -9,6 +9,14 @@
 #include "kernel/interrupt.h"
 #include "kernel/device/timer.h"
 #include "kernel/memory.h"
+#include "kernel/thread.h"
+
+void Thread_Test(void *args)
+{
+	while (1) {
+		put_str((const char *)args);
+	}
+}
 
 int main()
 {
@@ -33,6 +41,8 @@ int main()
 	put_str("Mem_GetKernelPages2 start addr is ");
 	put_int((uintptr_t)Mem_GetKernelPages(5));
 	put_str("\n");
+
+	Task *task = Thread_Create("hp-kernel", 20, Thread_Test, "Test args");
 
 	while (1) {
 	
