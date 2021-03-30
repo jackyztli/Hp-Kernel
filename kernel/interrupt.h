@@ -48,5 +48,7 @@ IntrStatus Idt_GetIntrStatus(void);
 IntrStatus Idt_IntrEnable(void);
 /* 关中断 */
 IntrStatus Idt_IntrDisable(void);
+/* 注册中断处理函数 */
+void Idt_RagisterHandler(uint8_t vecNr, intr_handler handler);
 
 #endif

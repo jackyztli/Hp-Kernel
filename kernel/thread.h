@@ -7,6 +7,7 @@
 #define THREAD_H
 
 #include "stdint.h"
+#include "lib/list.h"
 
 /* 进程或线程状态枚举 */
 typedef enum {
@@ -46,6 +47,16 @@ typedef struct {
     uint32_t priority;
     /* 任务名 */
     char name[16];
+    /* 任务每次在处理器执行的时间 */
+    uint8_t ticks;
+    /* 此任务自上cpu运行的时间 */
+    uint32_t elapsedTicks;
+    /* 在一般链表中的节点，通常用于在运行链表中的阶段 */
+    ListNode generalTag;
+    /* 在所有线程队列中的节点 */
+    ListNode threadListTag;
+    /* 页表指针 */
+    uint32_t *pgdir;
     /* 任务魔数，用于判断边界 */
     uint32_t stackMagic;
 } Task;
@@ -53,5 +64,14 @@ typedef struct {
 
 /* 线程创建函数 */
 Task *Thread_Create(const char *name, uint32_t priority, ThreadFunc threadFunc, void *threadArgs);
+
+/* 获取当前任务的PCB地址 */
+Task *Thread_GetRunningTask(void);
+
+/* 任务调度 */
+void Thread_Schedule(void);
+
+/* 任务初始化 */
+void Thread_Init(void);
 
 #endif

@@ -13,7 +13,13 @@ add_custom_command(
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-set(KERNEL_SRC main.c kernel.o thread.c memory.c bitmap.c ${LIB_DIR}/list.c ${LIB_DIR}/string.c panic.c interrupt.c device/timer.c print.o)
+add_custom_command(
+    OUTPUT switch.o
+    COMMAND ${CMAKE_ASM_COMPILER} -f elf -o switch.o switch.s
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+set(KERNEL_SRC main.c kernel.o thread.c memory.c bitmap.c ${LIB_DIR}/list.c ${LIB_DIR}/string.c panic.c interrupt.c device/timer.c print.o switch.o)
 add_custom_command(
     OUTPUT kernel.bin
     COMMAND ${CMAKE_C_COMPILER} -o kernel.bin ${KERNEL_SRC} -I${ROOT_DIR}/include/ -I${ROOT_DIR}/ -fno-builtin -m32 -Ttext 0xc0001500 -e main
@@ -24,4 +30,5 @@ add_custom_command(
 add_custom_target(kernel_bin_src ALL
     DEPENDS kernel.o
             print.o
+            switch.o
             kernel.bin)

@@ -24,8 +24,6 @@ int main()
 	
 	/* 初始化中断 */
 	Idt_Init();
-	/* 打开中断 */
-	__asm__ volatile("sti");
 
 	/* 调整时钟中断周期 */
 	Timer_Init();
@@ -41,11 +39,18 @@ int main()
 	put_str("Mem_GetKernelPages2 start addr is ");
 	put_int((uintptr_t)Mem_GetKernelPages(5));
 	put_str("\n");
+	
+	/* 任务初始化 */
+    Thread_Init();
 
-	Task *task = Thread_Create("hp-kernel", 20, Thread_Test, "Test args");
+	Task *task1 = Thread_Create("test_1", 8,  Thread_Test, "Test_1");
+	Task *task2 = Thread_Create("test_2", 32, Thread_Test, "Test_2");
+
+	/* 打开中断 */
+	Idt_IntrEnable();
 
 	while (1) {
-	
+		put_str("Main ");
 	}
 
     return 0;

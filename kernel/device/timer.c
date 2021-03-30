@@ -7,6 +7,8 @@
 #include "timer.h"
 #include "stdint.h"
 #include "kernel/io.h"
+#include "kernel/interrupt.h"
+#include "kernel/thread.h"
 #include "lib/print.h"
 
 #define COUNTER0_PORT      0x40
@@ -32,6 +34,22 @@ static inline void Timer_SetFrequency(uint16_t timerFrequency)
     outb(COUNTER0_PORT, (uint8_t)(timerFrequency >> 8));
 }
 
+/* 时钟中断处理函数 */
+static void Timer_IntrHandler(void)
+{
+    /* 获取当前正在运行的任务 */
+    Task *currTask = Thread_GetRunningTask();
+
+    currTask->elapsedTicks++;
+
+    if (currTask->ticks == 0) {
+        /* CPU时间已经用完，进行任务调度 */
+        Thread_Schedule();
+    } else {
+        currTask->ticks--;
+    }
+}
+
 /* 初始化8253时钟 */
 void Timer_Init(void)
 {
@@ -39,6 +57,9 @@ void Timer_Init(void)
 
     /* 设置时钟中断周期为每秒100次中断 */
     Timer_SetFrequency(COUNTER0_FREQUENCY);
+
+    /* 注册时钟中断处理函数 */
+    Idt_RagisterHandler(0x20, Timer_IntrHandler);
 
     put_str("Timer_Init end. \n");
 }

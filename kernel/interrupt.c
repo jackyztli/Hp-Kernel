@@ -105,10 +105,37 @@ static void Idt_GeneralIntrHendler(uint8_t vecNr)
         return;
     }
 
+    /* 发生异常，打印异常信息，系统挂起 */
+    put_str("!!!!!!!!        excetion message begin        !!!!!!!!\n");
+    put_str(intr_name[vecNr]);
+    /* 缺页异常，将缺失的地址打印 */
+    if (vecNr == 14) {
+        int32_t pageFaultAddr = 0;
+        /* 缺页异常的地址会存放到cr2寄存器 */
+        __asm__ volatile("movl %%cr2, %0" : "=r"(pageFaultAddr));
+        put_str("\npage fault addr is ");
+        put_int(pageFaultAddr);
+        put_str("\n");
+    }
+
+    put_str("!!!!!!!!        excetion message end        !!!!!!!!\n");
+
+    /* 系统悬停，方便定位 */
+    while (1) {
+
+    }
+
     return;
 }
 
-/* 中断处理函数表初始化 */
+/* 注册中断处理函数 */
+void Idt_RagisterHandler(uint8_t vecNr, intr_handler handler)
+{
+    /* 中断处理函数用idt_table表记录 */
+    idt_table[vecNr] = handler;
+}
+
+/* 异常处理函数表初始化 */
 static void Idt_IdtTableInit(void)
 {
     for (uint8_t i = 0; i < IDT_DESC_CNT; i++) {
@@ -131,7 +158,7 @@ static void Idt_IdtTableInit(void)
     intr_name[12] = "#SS Stack Fault Exception";
     intr_name[13] = "#GP General Protection Exception";
     intr_name[14] = "#PF Page-Fault Exception";
-    // intr_name[15] 第15项是intel保留项，未使用
+    /* intr_name[15] 第15项是intel保留项，未使用 */
     intr_name[16] = "#MF x87 FPU Floating-Point Error";
     intr_name[17] = "#AC Alignment Check Exception";
     intr_name[18] = "#MC Machine-Check Exception";
