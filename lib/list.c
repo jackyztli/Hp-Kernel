@@ -20,13 +20,35 @@ void List_Init(List *list)
     return;
 }
 
+/* 在头部插入一个节点 */
+void List_Push(List *list, ListNode *listNode)
+{
+    ASSERT((list != NULL) && (listNode != NULL));
+
+    /* 链表为全局的，需要关中断保护 */
+    IntrStatus status = Idt_IntrDisable();
+
+    list->head.next->prev = listNode;
+    
+    listNode->prev = &(list->head);
+    listNode->next = list->head.next;
+    
+    list->head.prev = NULL;
+    list->head.next = listNode;
+
+    /* 处理完成后需要打开中断 */
+    Idt_IntrSetStatus(status);
+
+    return;
+}
+
 /* 在尾部插入一个节点 */
 void List_Append(List *list, ListNode *listNode)
 {
     ASSERT((list != NULL) && (listNode != NULL));
 
     /* 链表为全局的，需要关中断保护 */
-    Idt_IntrDisable();
+    IntrStatus status = Idt_IntrDisable();
 
     list->tail.prev->next = listNode;
 
@@ -37,7 +59,7 @@ void List_Append(List *list, ListNode *listNode)
     list->tail.next = NULL;
 
     /* 处理完成后需要打开中断 */
-    Idt_IntrEnable();
+    Idt_IntrSetStatus(status);
 
     return;
 }
@@ -60,14 +82,14 @@ ListNode *List_Pop(List *list)
     ASSERT(List_IsEmpty(list) != true);
 
     /* 链表为全局的，需要关中断保护 */
-    Idt_IntrDisable();
+     IntrStatus status = Idt_IntrDisable();
     ListNode *listNode = list->head.next;
 
     listNode->prev->next = listNode->next;
     listNode->next->prev = listNode->prev;
 
     /* 处理完成后需要打开中断 */
-    Idt_IntrEnable();
+    Idt_IntrSetStatus(status);
 
     return listNode;
 }

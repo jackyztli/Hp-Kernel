@@ -20,6 +20,8 @@ typedef struct {
 
 /* 链表初始化 */
 void List_Init(List *list);
+/* 在头部插入一个节点 */
+void List_Push(List *list, ListNode *listNode);
 /* 在尾部插入一个节点 */
 void List_Append(List *list, ListNode *listNode);
 /* 判断是否为空链表 */

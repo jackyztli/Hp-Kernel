@@ -149,6 +149,38 @@ void Thread_Schedule(void)
     return;
 }
 
+/* 当前任务阻塞 */
+void Thread_Block(TaskStatus status)
+{
+    /* 任务阻塞只能是如下三种状态 */
+    ASSERT((status == TASK_BLOCKED) || (status == TASK_WAITING) || (status == TASK_HANDING));
+    IntrStatus oldStatus = Idt_IntrEnable();
+    Task *currTask = Thread_GetRunningTask();
+    currTask->taskStatus = status;
+    /* 重新调度给其他任务 */
+    Thread_Schedule();
+    /* 解阻塞后，重新设置中断状态 */
+    Idt_IntrSetStatus(oldStatus);
+}
+
+/* 当前任务被唤醒 */
+void Thread_UnBlock(Task *task)
+{
+    ASSERT(task != NULL);
+    IntrStatus oldStatus = Idt_IntrEnable();
+    IntrStatus status = task->taskStatus;
+    ASSERT((status == TASK_BLOCKED) || (status == TASK_WAITING) || (status == TASK_HANDING));
+    if (task->taskStatus != TASK_READY) {
+        /* 将任务添加到待运行队列 */
+        ASSERT(List_Find(&threadReadyList, &task->generalTag) == false);
+        List_Push(&threadReadyList, &task->generalTag);
+        task->taskStatus = TASK_READY;
+    }
+    
+    /* 解阻塞后，重新设置中断状态 */
+    Idt_IntrSetStatus(oldStatus);
+}
+
 /* 任务初始化 */
 void Thread_Init(void)
 {

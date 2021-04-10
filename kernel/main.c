@@ -10,11 +10,12 @@
 #include "kernel/device/timer.h"
 #include "kernel/memory.h"
 #include "kernel/thread.h"
+#include "kernel/console.h"
 
 void Thread_Test(void *args)
 {
 	while (1) {
-		put_str((const char *)args);
+		Console_PutStr((const char *)args);
 	}
 }
 
@@ -40,17 +41,20 @@ int main()
 	put_int((uintptr_t)Mem_GetKernelPages(5));
 	put_str("\n");
 	
+	/* 初始化打印控制台 */
+	Console_Init();
+
 	/* 任务初始化 */
     Thread_Init();
 
-	Task *task1 = Thread_Create("test_1", 8,  Thread_Test, "Test_1");
-	Task *task2 = Thread_Create("test_2", 32, Thread_Test, "Test_2");
+	Task *task1 = Thread_Create("test_1", 8,  Thread_Test, "Test_1 ");
+	Task *task2 = Thread_Create("test_2", 32, Thread_Test, "Test_2 ");
 
 	/* 打开中断 */
 	Idt_IntrEnable();
 
 	while (1) {
-		put_str("Main ");
+		Console_PutStr("Main ");
 	}
 
     return 0;

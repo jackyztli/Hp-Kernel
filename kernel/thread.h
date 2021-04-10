@@ -68,8 +68,17 @@ Task *Thread_Create(const char *name, uint32_t priority, ThreadFunc threadFunc, 
 /* 获取当前任务的PCB地址 */
 Task *Thread_GetRunningTask(void);
 
+/* 通过任务链表节点获取任务的PCB地址 */
+Task *Thread_GetTaskPCB(const ListNode *listNode);
+
 /* 任务调度 */
 void Thread_Schedule(void);
+
+/* 当前进程阻塞 */
+void Thread_Block(TaskStatus status);
+
+/* 当前任务被唤醒 */
+void Thread_UnBlock(Task *task);
 
 /* 任务初始化 */
 void Thread_Init(void);

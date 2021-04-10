@@ -199,6 +199,22 @@ IntrStatus Idt_IntrDisable(void)
     return INTR_ON;
 }
 
+void Idt_IntrSetStatus(IntrStatus status)
+{
+    IntrStatus currentStatus = Idt_GetIntrStatus();
+    if (currentStatus == status) {
+        return;
+    }
+
+    if (status == INTR_ON) {
+        Idt_IntrEnable();
+    } else {
+        Idt_IntrDisable();
+    }
+
+    return;
+}
+
 /* 中断初始化入口函数 */
 void Idt_Init(void)
 {
