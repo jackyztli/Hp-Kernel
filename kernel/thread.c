@@ -50,6 +50,23 @@ static void Thread_KernelStart(ThreadFunc threadFunc, void *threadArgs)
 /* 任务栈初始化 */
 static inline void Thread_TaskInit(Task *task, const char *name, uint32_t priority, ThreadFunc threadFunc, void *threadArgs)
 {
+    /* PCB中的ebp指针默认指向该PCB的最大值 */
+    task->taskStack = (TaskStack *)((uintptr_t)task + PAGE_SIZE);
+    strcpy(task->name, name);
+    task->priority = priority;
+    task->ticks = priority;
+    task->elapsedTicks = 0;
+    task->pgdir = NULL;
+    task->stackMagic = 0x19AE1617;
+
+    task->taskStatus = TASK_READY;
+    if (task == mainThreadTask) {
+        /* 如果是main任务，其已经正在运行状态了 */
+        task->taskStatus = TASK_RUNNING;
+        /* main任务已经设置了相应的寄存器，无需重复设置 */
+        return;
+    }
+
     /* 任务栈空间存储在PCB高地址处 */
     task->taskStack = (TaskStack *)((uintptr_t)task + PAGE_SIZE - sizeof(TaskStack));
     TaskStack *taskStack = task->taskStack;
@@ -63,19 +80,6 @@ static inline void Thread_TaskInit(Task *task, const char *name, uint32_t priori
     taskStack->eip = Thread_KernelStart;
     taskStack->threadFunc = threadFunc;
     taskStack->threadArgs = threadArgs;
-
-    task->taskStatus = TASK_READY;
-    if (task == mainThreadTask) {
-        /* 如果是main任务，其已经正在运行状态了 */
-        task->taskStatus = TASK_RUNNING;
-    }
-
-    task->priority = priority;
-    strcpy(task->name, name);
-    task->ticks = priority;
-    task->elapsedTicks = 0;
-    task->pgdir = NULL;
-    task->stackMagic = 0x19AE1617;
 }
 
 /* 线程创建函数 */

@@ -8,18 +8,6 @@
 
 #include "stdint.h"
 
-#define RPL0 0
-#define RPL1 1
-#define RPL2 2
-#define RPL3 3
-
-#define T1_GDT 0
-#define T0_LDT 1
-
-/* 中断处理函数段选择子 */
-#define SELECTOR_K_CODE ((1 << 3) + (T1_GDT << 2) + RPL0)
-#define SELECTOR_K_DATA ((2 << 3) + (T1_GDT << 2) + RPL0)
-
 /* 中断描述符属性 */
 #define IDT_DESC_P 1
 #define IDT_DESC_DPL0 0

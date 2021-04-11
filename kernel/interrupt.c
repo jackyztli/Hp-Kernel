@@ -7,6 +7,7 @@
 #include "interrupt.h"
 #include "stdint.h"
 #include "kernel/io.h"
+#include "kernel/global.h"
 #include "lib/print.h"
 
 /* 当前支持的中断数 */

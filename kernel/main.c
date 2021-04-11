@@ -11,6 +11,7 @@
 #include "kernel/memory.h"
 #include "kernel/thread.h"
 #include "kernel/console.h"
+#include "kernel/tss.h"
 
 void Thread_Test(void *args)
 {
@@ -50,6 +51,8 @@ int main()
 	Task *task1 = Thread_Create("test_1", 8,  Thread_Test, "Test_1 ");
 	Task *task2 = Thread_Create("test_2", 32, Thread_Test, "Test_2 ");
 
+	TSS_Init();
+	
 	/* 打开中断 */
 	Idt_IntrEnable();
 
