@@ -11,6 +11,8 @@
 
 void panic(const char *fileName, uint32_t fileLine, const char *funcName, const char *condition);
 
+#define PANIC(...) panic(__FILE__, __LINE__, __func__, __VA_ARGS__)
+
 #ifdef DEBUG_KERNEL
     #define ASSERT(CONDITION) ((void)0)
 #else
@@ -18,7 +20,7 @@ void panic(const char *fileName, uint32_t fileLine, const char *funcName, const 
     do {                                                           \
         if (CONDITION) {                                           \
         } else {                                                   \
-            panic(__FILE__, __LINE__, __func__, #CONDITION);   \
+            panic(__FILE__, __LINE__, __func__, #CONDITION);       \
         }                                                          \
     } while (0)
 #endif

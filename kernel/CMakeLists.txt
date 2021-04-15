@@ -19,10 +19,10 @@ add_custom_command(
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-set(KERNEL_SRC main.c kernel.o console.c tss.c sync.c thread.c memory.c bitmap.c ${LIB_DIR}/list.c ${LIB_DIR}/string.c panic.c interrupt.c device/timer.c print.o switch.o)
+set(KERNEL_SRC main.c kernel.o console.c process.c tss.c sync.c thread.c memory.c bitmap.c ${LIB_DIR}/list.c ${LIB_DIR}/string.c panic.c interrupt.c device/timer.c print.o switch.o)
 add_custom_command(
     OUTPUT kernel.bin
-    COMMAND ${CMAKE_C_COMPILER} -o kernel.bin ${KERNEL_SRC} -I${ROOT_DIR}/include/ -I${ROOT_DIR}/ -fno-builtin -m32 -Ttext 0xc0001500 -e main
+    COMMAND ${CMAKE_C_COMPILER} -o kernel.bin ${KERNEL_SRC} -I${ROOT_DIR}/include/ -I${ROOT_DIR}/ -fno-stack-protector -fno-builtin -m32 -Ttext 0xc0001500 -e main
     COMMAND mv -f kernel.bin ${OUTPUT_DIR}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )

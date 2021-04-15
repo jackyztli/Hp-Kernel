@@ -67,7 +67,7 @@ static void Idt_DescInit(void)
 static inline void Idt_SetIdtRegister(void)
 {
     /* 中断描述符寄存器低16位是表界限，高32位是表基址 */
-    uint64_t idtOperand = (sizeof(idt) - 1) | ((uint64_t)((uintptr_t)idt << 16));
+    uint64_t idtOperand = (sizeof(idt) - 1) | ((uint64_t)(uintptr_t)idt << 16);
     /* lidt指令加载中断描述符寄存器 */
     __asm__ volatile("lidt %0" :: "m"(idtOperand));
 }
@@ -200,7 +200,7 @@ IntrStatus Idt_IntrDisable(void)
     return INTR_ON;
 }
 
-void Idt_IntrSetStatus(IntrStatus status)
+void Idt_SetIntrStatus(IntrStatus status)
 {
     IntrStatus currentStatus = Idt_GetIntrStatus();
     if (currentStatus == status) {

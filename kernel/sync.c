@@ -28,7 +28,7 @@ static void Lock_P(Lock *lock)
     lock->value--;
     ASSERT(lock->value == 0);
 
-    Idt_IntrSetStatus(status);
+    Idt_SetIntrStatus(status);
 
     return;
 }
@@ -50,7 +50,7 @@ static void Lock_V(Lock *lock)
     /* 已经获取到锁资源，任务被重新唤起 */
     lock->value++;
     ASSERT(lock->value == 1);
-    Idt_IntrSetStatus(status);
+    Idt_SetIntrStatus(status);
 
     return;
 }

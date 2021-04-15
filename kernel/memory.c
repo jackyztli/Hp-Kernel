@@ -8,6 +8,7 @@
 #include "stdint.h"
 #include "kernel/panic.h"
 #include "kernel/bitmap.h"
+#include "kernel/sync.h"
 #include "lib/print.h"
 #include "lib/string.h"
 
@@ -28,13 +29,13 @@
 #define PDE_INDEX(addr) ((addr & 0xffc00000) >> 22)
 #define PTE_INDEX(addr) ((addr & 0x003ff000) >> 12)
 
-/* 页表属性宏 */
-#define PG_P_0 0      /* 页目录项或页表被未占用标志 */
-#define PG_P_1 1      /* 页目录项或页表被占用标志 */
-#define PG_RW_R 0     /* R/W属性位，读/执行 */
-#define PG_RW_W 1     /* R/W属性位，读/写/执行 */
-#define PG_US_S 0     /* 设置访问权限，系统级 */
-#define PG_US_U 4     /* 设置访问权限，用户级 */
+/* 物理内存池 */
+typedef struct {
+    Bitmap bitmap;
+    uint32_t phyAddrStart;
+    uint32_t poolSize;
+    Lock memLock;
+} MemPool;
 
 /* 内核物理内存池 */
 MemPool kernelMemPool;
@@ -67,7 +68,9 @@ static void Mem_PoolInit(uint32_t allMemSize)
     kernelMemPool.poolSize = kernelFreePages * PAGE_SIZE;
     /* 将位图置0，表示内存未被使用 */
     BitmapInit(&kernelMemPool.bitmap);
-
+    /* 初始化内存池锁 */
+    Lock_Init(&kernelMemPool.memLock);
+    
     /* 初始化用户物理内存池 */
     userMemPool.bitmap.bitmapLen = userFreePages / 8;
     userMemPool.bitmap.bitmap = (uint8_t *)(MEM_BITMAP_BASE + kernelMemPool.bitmap.bitmapLen);
@@ -75,7 +78,9 @@ static void Mem_PoolInit(uint32_t allMemSize)
     userMemPool.poolSize = userFreePages * PAGE_SIZE;
     /* 将位图置0，表示内存未被使用 */
     BitmapInit(&userMemPool.bitmap);
-    
+    /* 初始化内存池锁 */
+    Lock_Init(&userMemPool.memLock);
+
     /* 打印物理内存划分情况 */
     put_str("kernelMemPool.bitmap.bitmap: ");
     put_int((uintptr_t)kernelMemPool.bitmap.bitmap);
@@ -107,26 +112,34 @@ static void Mem_PoolInit(uint32_t allMemSize)
     put_str("Mem_PoolInit end, \n");
 }
 
+static inline uintptr_t Mem_GetVirAddrFromBitmap(Bitmap *bitmap, uint32_t pagesNums, uint32_t virtualAddrStart)
+{
+    /* 通过位图找到合适的空间 */
+    int32_t startBitIndex = BitmapScan(bitmap, pagesNums);
+    /* 找不到n个可用的连续虚拟页 */
+    if (startBitIndex == -1) {
+        return NULL;
+    }
+
+    /* 从startBitIndex开始，将pagesNums位bit置1，表示已被占用 */
+    for (uint32_t i = 0; i < pagesNums; i++) {
+        BitmapSet(&kernelVirMemPool.bitmap, startBitIndex + i, 1);
+    }
+
+    return virtualAddrStart + startBitIndex * PAGE_SIZE;
+}
+
 /* 分配n个连续虚拟页，成功返回虚拟地址，失败者返回NULL */
 static void *Mem_GetVirAddr(VirMemType virMemtype, uint32_t pagesNums)
 {
     uintptr_t virAddr = NULL;
 
     if (virMemtype == VIR_MEM_KERNEL) {
-        /* 通过位图找到合适的空间 */
-        int32_t startBitIndex = BitmapScan(&kernelVirMemPool.bitmap, pagesNums);
-        /* 找不到n个可用的连续虚拟页 */
-        if (startBitIndex == -1) {
-            return NULL;
-        }
-
-        /* 从startBitIndex开始，将pagesNums位bit置1，表示已被占用 */
-        for (uint32_t i = 0; i < pagesNums; i++) {
-            BitmapSet(&kernelVirMemPool.bitmap, startBitIndex + i, 1);
-        }
-        virAddr = kernelVirMemPool.virtualAddrStart + startBitIndex * PAGE_SIZE;
+        virAddr = Mem_GetVirAddrFromBitmap(&kernelVirMemPool.bitmap, pagesNums, kernelVirMemPool.virtualAddrStart);
     } else {
         /* 分配用户虚拟地址 */
+        Task *currTask = Thread_GetRunningTask();
+        virAddr = Mem_GetVirAddrFromBitmap(&currTask->progVaddrPool.bitmap, pagesNums, currTask->progVaddrPool.virtualAddrStart);
     }
 
     return (void *)virAddr;
@@ -182,7 +195,7 @@ static void Mem_AddPageTable(void *virAddr, void *pagePhyAddr)
         /* 设置页表属性 */
         *pte = (pagePhyAddrTmp | PG_US_U | PG_RW_W | PG_P_1);
     } else {
-        /* 页目录项不存在，先创建页表映射 */
+        /* 页目录项不存在，先创建页表映射，用户进程的页目录表也存放在内核内存池中 */
         uint32_t pdePhyAddr = (uint32_t)Mem_Palloc(&kernelMemPool);
         ASSERT(pagePhyAddr != NULL);
 
@@ -233,17 +246,87 @@ void *Mem_MallocPages(VirMemType virMemType, uint32_t pageNum)
     return virAddrStart;
 }
 
-/* 内核申请n个页空间 */
-void *Mem_GetKernelPages(uint32_t pageNum)
+/* 申请一页空间，并映射到指定地址 */
+void *Mem_GetOnePage(VirMemType virMemType, uintptr_t virAddrStart)
 {
-    void *virAddrStart = Mem_MallocPages(VIR_MEM_KERNEL, pageNum);
+    MemPool *memPool = NULL;
+    if (virMemType == VIR_MEM_KERNEL) {
+        memPool = &kernelMemPool;
+    } else if (virMemType == VIR_MEM_USER) {
+        memPool = &userMemPool;
+    }
+
+    Lock_Lock(&memPool->memLock); 
+
+    Task *curTask = Thread_GetRunningTask();
+    int32_t bitIndex = -1;
+    /* 用户进程修改用户进程自己虚拟内存池 */
+    if ((curTask->pgDir != NULL) && (virMemType == VIR_MEM_USER)) {
+        bitIndex = ((uintptr_t)virAddrStart - curTask->progVaddrPool.virtualAddrStart) / PAGE_SIZE;
+        ASSERT(bitIndex > 0);
+        BitmapSet(&curTask->progVaddrPool.bitmap, bitIndex, 1);
+    } else if ((curTask->pgDir == NULL) && (virMemType == VIR_MEM_KERNEL)) {
+        /* 内核线程修改内核虚拟内存池 */
+        bitIndex = ((uintptr_t)virAddrStart - kernelVirMemPool.virtualAddrStart) / PAGE_SIZE;
+        ASSERT(bitIndex > 0);
+        BitmapSet(&kernelVirMemPool.bitmap, bitIndex, 1);
+    } else {
+        /* 出错 */
+        PANIC("GetOnePage Failed!");
+    }
+
+    /* 申请一页物理内存 */
+    void *pagePhyAddr = Mem_Palloc(memPool);
+     if (pagePhyAddr == NULL) {
+        return NULL;
+    }
+
+    Mem_AddPageTable((void *)virAddrStart, pagePhyAddr);
+
+    Lock_UnLock(&memPool->memLock);
+
+    return (void *)virAddrStart;
+}
+
+/* 用户进程申请n个页空间 */
+void *Mem_GetUserPages(uint32_t pageNum)
+{
+    Lock_Lock(&userMemPool.memLock);
+    void *virAddrStart = Mem_MallocPages(VIR_MEM_USER, pageNum);
     if (virAddrStart == NULL) {
+        Lock_UnLock(&userMemPool.memLock);
         return NULL;
     }
 
     memset(virAddrStart, 0, pageNum * PAGE_SIZE);
 
+    Lock_UnLock(&userMemPool.memLock);
+
     return virAddrStart;
+}
+
+/* 内核申请n个页空间 */
+void *Mem_GetKernelPages(uint32_t pageNum)
+{
+    Lock_Lock(&kernelMemPool.memLock);
+    void *virAddrStart = Mem_MallocPages(VIR_MEM_KERNEL, pageNum);
+    if (virAddrStart == NULL) {
+        Lock_UnLock(&kernelMemPool.memLock);
+        return NULL;
+    }
+
+    memset(virAddrStart, 0, pageNum * PAGE_SIZE);
+
+    Lock_Lock(&kernelMemPool.memLock);
+    return virAddrStart;
+}
+
+/* 根据虚拟地址获取对应物理地址 */
+uintptr_t Mem_V2P(uintptr_t virAddr)
+{
+    /* 获取virAddr对应的页表物理地址 */
+    uint32_t *pte = Mem_GetVirAddrPtePtr(virAddr);
+    return (uintptr_t)((*pte & 0xfffff000) + (virAddr & 0x00000fff));
 }
 
 /* 内存管理模块初始化 */

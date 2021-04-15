@@ -9,6 +9,7 @@
 #include "kernel/memory.h"
 #include "kernel/panic.h"
 #include "kernel/interrupt.h"
+#include "kernel/process.h"
 #include "lib/string.h"
 #include "lib/list.h"
 #include "lib/print.h"
@@ -31,7 +32,7 @@ void Thread_SwitchTo(Task *currTask, Task *nextTask);
 Task *Thread_GetRunningTask(void)
 {
     uint32_t esp = 0;
-    __asm__ volatile("mov %% esp, %0" : "=g"(esp));
+    __asm__ volatile("mov %%esp, %0" : "=g"(esp));
 
     return (Task *)(esp & 0xfffff000);
 }
@@ -51,12 +52,12 @@ static void Thread_KernelStart(ThreadFunc threadFunc, void *threadArgs)
 static inline void Thread_TaskInit(Task *task, const char *name, uint32_t priority, ThreadFunc threadFunc, void *threadArgs)
 {
     /* PCB中的ebp指针默认指向该PCB的最大值 */
-    task->taskStack = (TaskStack *)((uintptr_t)task + PAGE_SIZE);
+    task->taskStack = (uint32_t *)((uintptr_t)task + PAGE_SIZE);
     strcpy(task->name, name);
     task->priority = priority;
     task->ticks = priority;
     task->elapsedTicks = 0;
-    task->pgdir = NULL;
+    task->pgDir = NULL;
     task->stackMagic = 0x19AE1617;
 
     task->taskStatus = TASK_READY;
@@ -67,9 +68,11 @@ static inline void Thread_TaskInit(Task *task, const char *name, uint32_t priori
         return;
     }
 
-    /* 任务栈空间存储在PCB高地址处 */
-    task->taskStack = (TaskStack *)((uintptr_t)task + PAGE_SIZE - sizeof(TaskStack));
-    TaskStack *taskStack = task->taskStack;
+    /* 中断栈放在PCB的最高处 */
+    task->taskStack -= sizeof(IntrStack);
+    /* 任务栈放在中断栈下面 */
+    task->taskStack -= sizeof(TaskStack);
+    TaskStack *taskStack = (TaskStack *)task->taskStack;
 
     /* 待保存寄存器初始化为0 */
     taskStack->ebp = 0;
@@ -147,6 +150,9 @@ void Thread_Schedule(void)
     Task *nextTask = Thread_GetTaskPCB(nextNode);
     nextTask->taskStatus = TASK_RUNNING;
     
+    /* 激活下个任务的页表 */
+    Process_Activate(nextTask);
+
     /* 任务切换 */
     Thread_SwitchTo(currTask, nextTask);
 
@@ -164,7 +170,7 @@ void Thread_Block(TaskStatus status)
     /* 重新调度给其他任务 */
     Thread_Schedule();
     /* 解阻塞后，重新设置中断状态 */
-    Idt_IntrSetStatus(oldStatus);
+    Idt_SetIntrStatus(oldStatus);
 }
 
 /* 当前任务被唤醒 */
@@ -182,7 +188,7 @@ void Thread_UnBlock(Task *task)
     }
     
     /* 解阻塞后，重新设置中断状态 */
-    Idt_IntrSetStatus(oldStatus);
+    Idt_SetIntrStatus(oldStatus);
 }
 
 /* 任务初始化 */

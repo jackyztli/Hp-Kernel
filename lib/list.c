@@ -37,7 +37,7 @@ void List_Push(List *list, ListNode *listNode)
     list->head.next = listNode;
 
     /* 处理完成后需要打开中断 */
-    Idt_IntrSetStatus(status);
+    Idt_SetIntrStatus(status);
 
     return;
 }
@@ -59,7 +59,7 @@ void List_Append(List *list, ListNode *listNode)
     list->tail.next = NULL;
 
     /* 处理完成后需要打开中断 */
-    Idt_IntrSetStatus(status);
+    Idt_SetIntrStatus(status);
 
     return;
 }
@@ -89,7 +89,7 @@ ListNode *List_Pop(List *list)
     listNode->next->prev = listNode->prev;
 
     /* 处理完成后需要打开中断 */
-    Idt_IntrSetStatus(status);
+    Idt_SetIntrStatus(status);
 
     return listNode;
 }

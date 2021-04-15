@@ -24,6 +24,6 @@ dd if=${OUTPUT_DIR}/kernel.bin of=${OUTPUT_DIR}/Hp-Kernel.bin bs=512 seek=9 conv
 # 清除临时产物
 rm -rf ${OUTPUT_DIR}/mbr.bin
 rm -rf ${OUTPUT_DIR}/loader.bin
-rm -rf ${OUTPUT_DIR}/kernel.bin
+#rm -rf ${OUTPUT_DIR}/kernel.bin
 
 exit 0

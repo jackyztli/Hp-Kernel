@@ -7,6 +7,7 @@
 #define TSS_H
 
 #include "stdint.h"
+#include "kernel/thread.h"
 #include "kernel/global.h"
 
 typedef struct {
@@ -35,6 +36,7 @@ typedef struct {
     uint32_t fs;
     uint32_t gs;
     uint32_t ldt;            /* 本地描述符选择子，未被使用 */
+    uint32_t trace;
     uint32_t ioBase;         /* I/O位图在TSS中的偏移地址 */
 } TSS;
 
@@ -52,6 +54,8 @@ typedef struct {
                         (DESC_S_SYS << 4) + \
                         DESC_TYPE_TSS)
 
+/* 更新tss中的esp0字段，用于特权级切换 */
+void TSS_UpdateEsp(Task *task);
 /* 初始化Tss */
 void TSS_Init(void);
 

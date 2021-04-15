@@ -37,7 +37,7 @@ IntrStatus Idt_IntrEnable(void);
 /* 关中断 */
 IntrStatus Idt_IntrDisable(void);
 /* 设置中断状态 */
-void Idt_IntrSetStatus(IntrStatus status);
+void Idt_SetIntrStatus(IntrStatus status);
 /* 注册中断处理函数 */
 void Idt_RagisterHandler(uint8_t vecNr, intr_handler handler);
 

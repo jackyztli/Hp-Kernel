@@ -64,6 +64,12 @@
 /* 全局描述符表项大小 */
 #define GDT_ITEM_SIZE     0x8
 
+#define EFLAGS_MBS	(1 << 1)	    /* 此项必须要设置 */
+#define EFLAGS_IF_1	(1 << 9)	    /* if为1，开中断 */
+#define EFLAGS_IF_0	0		        /* if为0，关中断 */
+#define EFLAGS_IOPL_3	(3 << 12)	/* IOPL3，用于测试用户程序在非系统调用下进行IO */
+#define EFLAGS_IOPL_0	(0 << 12)	/* IOPL0 */
+
 /* GDT描述符结构体 */
 typedef struct {
     uint16_t limitLowWord;
@@ -92,7 +98,7 @@ static inline GDTDesc MakeGDTDesc(uint32_t *descAddr, uint32_t limit, uint8_t at
 /* 刷新GDTR寄存器 */
 static inline void LoadGDTR(uint32_t size)
 {
-    uint64_t gdtOperand = (size * GDT_ITEM_SIZE - 1) | ((uint64_t)((uint32_t)GDT_BASE_ADDR << 16));
+    uint64_t gdtOperand = (size * GDT_ITEM_SIZE - 1) | ((uint64_t)(uint32_t)GDT_BASE_ADDR << 16);
     __asm__ volatile ("lgdt %0" : : "m"(gdtOperand));
 }
 

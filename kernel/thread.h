@@ -7,6 +7,7 @@
 #define THREAD_H
 
 #include "stdint.h"
+#include "kernel/memory.h"
 #include "lib/list.h"
 
 /* 进程或线程状态枚举 */
@@ -21,6 +22,34 @@ typedef enum {
 
 /* 任务通用函数定义 */
 typedef void (*ThreadFunc) (void *threadArgs);
+
+typedef struct {
+    /* 中断号 */
+    uint32_t vecNo;
+    /* 通用寄存器 */
+    uint32_t edi;
+    uint32_t esi;
+    uint32_t ebp;
+    /* esp寄存器占位，实际不使用 */
+    uint32_t espDummy;
+    uint32_t ebx;
+    uint32_t edx;
+    uint32_t ecx;
+    uint32_t eax;
+    /* 段寄存器 */
+    uint32_t gs;
+    uint32_t fs;
+    uint32_t es;
+    uint32_t ds;
+
+    /* cpu从低特权级进入到高特权级时使用 */
+    uint32_t errCode;
+    void (*eip) (void);
+    uint32_t cs;
+    uint32_t eflags;
+    void *esp;
+    uint32_t ss;
+} IntrStack;
 
 typedef struct {
     /* 以下用于保存函数调用过程中的寄存器 */
@@ -40,13 +69,13 @@ typedef struct {
 
 typedef struct {
     /* 任务私有栈 */
-    TaskStack *taskStack;
+    uint32_t *taskStack;
     /* 任务状态 */
     TaskStatus taskStatus;
-    /* 任务优先级 */
-    uint32_t priority;
     /* 任务名 */
     char name[16];
+    /* 任务优先级 */
+    uint8_t priority;
     /* 任务每次在处理器执行的时间 */
     uint8_t ticks;
     /* 此任务自上cpu运行的时间 */
@@ -56,7 +85,9 @@ typedef struct {
     /* 在所有线程队列中的节点 */
     ListNode threadListTag;
     /* 页表指针 */
-    uint32_t *pgdir;
+    uint32_t *pgDir;
+    /* 进程自己页表虚拟地址管理池 */
+    VirtualMemPool progVaddrPool;
     /* 任务魔数，用于判断边界 */
     uint32_t stackMagic;
 } Task;
