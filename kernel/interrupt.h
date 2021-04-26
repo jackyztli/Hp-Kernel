@@ -11,7 +11,7 @@
 /* 中断描述符属性 */
 #define IDT_DESC_P 1
 #define IDT_DESC_DPL0 0
-#define IDT_DECS_DPL3 3
+#define IDT_DESC_DPL3 3
 #define IDT_DESC_32_TYPE 0xE
 #define IDT_DESC_ATTR_DPL0 \
     ((IDT_DESC_P << 7) + (IDT_DESC_DPL0 << 5) + IDT_DESC_32_TYPE)

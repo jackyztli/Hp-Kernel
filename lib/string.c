@@ -49,3 +49,17 @@ void strcpy(char *dst, const char *src)
 
     return; 
 }
+
+/* 返回字符串长度 */
+uint32_t strlen(const char *str)
+{
+    ASSERT(str != NULL);
+
+    uint32_t len = 0;
+    while (*str != '\0') {
+        len++;
+        str++;
+    }
+
+    return len; 
+}

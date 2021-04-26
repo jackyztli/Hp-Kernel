@@ -22,6 +22,7 @@ typedef enum {
 
 /* 任务通用函数定义 */
 typedef void (*ThreadFunc) (void *threadArgs);
+typedef uint32_t pid_t;
 
 typedef struct {
     /* 中断号 */
@@ -70,6 +71,8 @@ typedef struct {
 typedef struct {
     /* 任务私有栈 */
     uint32_t *taskStack;
+    /* 任务标识 */
+    pid_t pid;
     /* 任务状态 */
     TaskStatus taskStatus;
     /* 任务名 */

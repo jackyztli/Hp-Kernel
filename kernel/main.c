@@ -13,39 +13,54 @@
 #include "kernel/console.h"
 #include "kernel/process.h"
 #include "kernel/tss.h"
+#include "kernel/syscall.h"
 
 uint32_t g_procA = 0;
 uint32_t g_procB = 0;
 
 void ThreadA_Test(void *args)
 {
+	Console_PutStr("ThreadA:0x");
+	Console_PutInt(sys_getpid());
+	Console_PutStr("\n");
+	Console_PutStr("ProcessA:0x");
+	Console_PutInt(g_procA);
+	Console_PutStr("\n");
+
 	while (1) {
-		Console_PutStr("ThreadA: ");
-		Console_PutInt(g_procA);
-		Console_PutStr("\n");
+
 	}
 }
 
 void ThreadB_Test(void *args)
 {
+	Console_PutStr("ThreadB:0x");
+	Console_PutInt(sys_getpid());
+	Console_PutStr("\n");
+	Console_PutStr("ProcessB:0x");
+	Console_PutInt(g_procB);
+	Console_PutStr("\n");
+
 	while (1) {
-		Console_PutStr("ThreadB: ");
-		Console_PutInt(g_procB);
-		Console_PutStr("\n");
+
 	}
 }
 
 void ProcessA_Test(void)
 {
+	g_procA = getpid();
+	write("In ProcessA_Test\n");
 	while (1) {
-		g_procA++;
+
 	}
 }
 
 void ProcessB_Test(void)
 {
+	g_procB = getpid();
+	write("In ProcessB_Test\n");
 	while (1) {
-		g_procB++;
+		
 	}
 }
 
@@ -68,13 +83,14 @@ int main()
 	/* 任务初始化 */
     Thread_Init();
 
-	Task *task1 = Thread_Create("test_1", 8,  ThreadA_Test, "Test_1 ");
-	Task *task2 = Thread_Create("test_2", 32, ThreadB_Test, "Test_2 ");
-
 	TSS_Init();
-	
+	Syscall_Init();
+		
 	Process_Create(ProcessA_Test, "Process_1");
 	Process_Create(ProcessB_Test, "Process_2");
+
+	Task *task1 = Thread_Create("test_1", 8,  ThreadA_Test, "Test_1 ");
+	Task *task2 = Thread_Create("test_2", 32, ThreadB_Test, "Test_2 ");
 
 	/* 打开中断 */
 	Idt_IntrEnable();

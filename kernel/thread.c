@@ -10,6 +10,7 @@
 #include "kernel/panic.h"
 #include "kernel/interrupt.h"
 #include "kernel/process.h"
+#include "kernel/sync.h"
 #include "lib/string.h"
 #include "lib/list.h"
 #include "lib/print.h"
@@ -27,6 +28,9 @@ Task *mainThreadTask;
 #define OFFSET(struct_name, member) (int32_t)(&((struct_name *)0)->member)
 /* 切换到下一个任务 */
 void Thread_SwitchTo(Task *currTask, Task *nextTask);
+
+/* 分配pid锁 */
+static Lock g_pidLock;
 
 /* 获取当前任务的PCB地址 */
 Task *Thread_GetRunningTask(void)
@@ -48,11 +52,22 @@ static void Thread_KernelStart(ThreadFunc threadFunc, void *threadArgs)
     threadFunc(threadArgs);
 }
 
+/* 申请任务标识符 */
+static inline pid_t Thread_AllocPid(void)
+{
+    Lock_Lock(&g_pidLock);
+    static pid_t nextPid = 0;
+    nextPid ++;
+    Lock_UnLock(&g_pidLock);
+    return nextPid;
+}
+
 /* 任务栈初始化 */
 static inline void Thread_TaskInit(Task *task, const char *name, uint32_t priority, ThreadFunc threadFunc, void *threadArgs)
 {
     /* PCB中的ebp指针默认指向该PCB的最大值 */
     task->taskStack = (uint32_t *)((uintptr_t)task + PAGE_SIZE);
+    task->pid = Thread_AllocPid();
     strcpy(task->name, name);
     task->priority = priority;
     task->ticks = priority;
@@ -199,6 +214,9 @@ void Thread_Init(void)
     List_Init(&threadAllList);
     List_Init(&threadReadyList);
     
+    /* 初始化pid锁 */
+    Lock_Init(&g_pidLock);
+
     /* 创建主线程PCB */
     Thread_MakeMainThread();
     

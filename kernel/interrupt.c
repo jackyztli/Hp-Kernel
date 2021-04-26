@@ -11,7 +11,7 @@
 #include "lib/print.h"
 
 /* 当前支持的中断数 */
-#define IDT_DESC_CNT 0x21
+#define IDT_DESC_CNT 0x81
 
 /* 8259A可编程中断控制器定义 */
 #define PIC_M_CTRL 0x20             /* 主片控制端口为0x20 */
@@ -39,25 +39,36 @@ extern intr_handler intr_entry_table[IDT_DESC_CNT];
 /* 中断处理函数表 */
 intr_handler idt_table[IDT_DESC_CNT];
 
+/* 系统调用中断处理函数 */
+extern intr_handler syscall_handler(void);
+
 /* 中断异常名 */
 static char *intr_name[IDT_DESC_CNT];
+
+static inline void Idt_MakeDesc(IdtGateDesc *idt, uint32_t attribute, intr_handler intr_entry)
+{
+    /* 中断处理入口函数低16位 */
+    idt->func_offset_low_word = (uintptr_t)intr_entry & 0x0000FFFF;
+    /* 中断处理入口函数段描述符选择子 */
+    idt->selector = SELECTOR_K_CODE;
+    /* 未使用字段 */
+    idt->dcount = 0;
+    /* 中断描述符属性 */
+    idt->attribute = attribute;
+    /* 中断处理入口函数高16位 */
+    idt->func_offset_high_word = ((uintptr_t)intr_entry & 0xFFFF0000) >> 16;
+}
 
 /* 初始化中断描述符表 */
 static void Idt_DescInit(void)
 {
     put_str("Idt_DescInit start. \n");
     for (uint8_t i = 0; i < IDT_DESC_CNT; i++) {
-        /* 中断处理入口函数低16位 */
-        idt[i].func_offset_low_word = (uintptr_t)intr_entry_table[i] & 0x0000FFFF;
-        /* 中断处理入口函数段描述符选择子 */
-        idt[i].selector = SELECTOR_K_CODE;
-        /* 未使用字段 */
-        idt[i].dcount = 0;
-        /* 中断描述符属性 */
-        idt[i].attribute = IDT_DESC_ATTR_DPL0;
-        /* 中断处理入口函数高16位 */
-        idt[i].func_offset_high_word = ((uintptr_t)intr_entry_table[i] & 0xFFFF0000) >> 16;
+        Idt_MakeDesc(&idt[i], IDT_DESC_ATTR_DPL0, intr_entry_table[i]);
     }
+
+    /* 系统调用中断门 */
+    Idt_MakeDesc(&idt[0x80], IDT_DESC_ATTR_DPL3, syscall_handler);
 
     put_str("Idt_DescInit end. \n");
     return;

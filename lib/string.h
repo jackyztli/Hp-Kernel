@@ -14,5 +14,7 @@ void memset(void *dst, uint8_t value, uint32_t size);
 void memcpy(void *dst, const void *src, uint32_t size);
 /* 源字符串拷贝到目的字符串 */
 void strcpy(char *dst, const char *src);
+/* 返回字符串长度 */
+uint32_t strlen(const char *str);
 
 #endif
