@@ -36,12 +36,24 @@ uint32_t write(const char *str)
     return _syscall1(SYS_WRITE, str);
 }
 
+void *malloc(uint32_t size)
+{
+    return _syscall1(SYS_MALLOC, size);
+}
+
+void free(void *ptr)
+{
+    return _syscall1(SYS_FREE, ptr);
+}
+
 /* 系统调用模块初始化 */
 void Syscall_Init(void)
 {
     Console_PutStr("Syscall_Init start.\n");    
     syscall_table[SYS_GETPID] = sys_getpid;
     syscall_table[SYS_WRITE] = sys_write;
+    syscall_table[SYS_MALLOC] = sys_malloc;
+    syscall_table[SYS_FREE] = sys_free;
     Console_PutStr("Syscall_Init end.\n"); 
 
     return;

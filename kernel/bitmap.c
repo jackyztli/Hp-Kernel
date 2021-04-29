@@ -19,6 +19,17 @@ void BitmapInit(Bitmap *bitmap)
     return;
 }
 
+/* 获取位图bitIndex位函数 */
+uint32_t BitmapGet(Bitmap *bitmap, uint32_t bitIndex)
+{
+    /* 合法性校验 */
+    ASSERT(bitmap != NULL);
+    /* bitIndex不能超过总长度 */
+    ASSERT(bitmap->bitmapLen > (bitIndex / 8));
+    
+    return (bitmap->bitmap[bitIndex / 8] & (1 << (bitIndex % 8))) >> (bitIndex % 8);
+}
+
 /* 设置位图bitIndex位函数 */
 void BitmapSet(Bitmap *bitmap, uint32_t bitIndex, uint8_t value)
 {

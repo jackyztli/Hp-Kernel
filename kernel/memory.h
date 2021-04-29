@@ -8,6 +8,7 @@
 
 #include "stdint.h"
 #include "kernel/bitmap.h"
+#include "lib/list.h"
 
 /* 页表大小为4K */
 #define PAGE_SIZE 4096
@@ -32,6 +33,28 @@ typedef enum {
     VIR_MEM_USER       /* 分配用户虚拟地址 */
 } VirMemType;
 
+/* 内存块 */
+typedef struct {
+    ListNode freeNode;
+} MemBlock;
+
+/* 内存块描述符 */
+typedef struct {
+    uint32_t blockSize;
+    uint32_t blockPerArena;
+    List freeList;
+} MemBlockDesc;
+
+/* 内存仓库 */
+typedef struct {
+    MemBlockDesc *desc;
+    uint32_t cnt;
+    bool large;
+} MemArena;
+
+/* 内存块描述符个数 */
+#define DESC_CNT 7
+
 /* 内存管理模块初始化入口 */
 void Mem_Init(void);
 /* 申请一页空间，并映射到指定地址 */
@@ -40,5 +63,13 @@ void *Mem_GetOnePage(VirMemType virMemType, uintptr_t virAddrStart);
 void *Mem_GetKernelPages(uint32_t pageNum);
 /* 根据虚拟地址获取对应物理地址 */
 uintptr_t Mem_V2P(uintptr_t virAddr);
+
+/* 初始化内核内存块描述符数组 */
+void Mem_BlockDescInit(MemBlockDesc *memBlockDesc);
+/* 在堆上申请size大小字节内存 */
+void *Mem_Malloc(uint32_t size);
+
+void *sys_malloc(uint32_t size);
+void sys_free(void *addr);
 
 #endif

@@ -9,6 +9,7 @@
 #include "kernel/panic.h"
 #include "kernel/bitmap.h"
 #include "kernel/sync.h"
+#include "kernel/interrupt.h"
 #include "lib/print.h"
 #include "lib/string.h"
 
@@ -29,6 +30,9 @@
 #define PDE_INDEX(addr) ((addr & 0xffc00000) >> 22)
 #define PTE_INDEX(addr) ((addr & 0x003ff000) >> 12)
 
+/* 整除向上对齐 */
+#define DIV_ROUND_UP(X, STEP) ((X + STEP - 1) / STEP)
+
 /* 物理内存池 */
 typedef struct {
     Bitmap bitmap;
@@ -41,6 +45,9 @@ typedef struct {
 MemPool kernelMemPool;
 /* 用户物理内存池 */
 MemPool userMemPool;
+
+/* 内核内存块描述符数组 */
+static MemBlockDesc kernelBlockDesc[DESC_CNT];
 
 /* 内核虚拟地址内存池 */
 VirtualMemPool kernelVirMemPool;
@@ -278,6 +285,7 @@ void *Mem_GetOnePage(VirMemType virMemType, uintptr_t virAddrStart)
     /* 申请一页物理内存 */
     void *pagePhyAddr = Mem_Palloc(memPool);
      if (pagePhyAddr == NULL) {
+        Lock_UnLock(&memPool->memLock);
         return NULL;
     }
 
@@ -317,7 +325,7 @@ void *Mem_GetKernelPages(uint32_t pageNum)
 
     memset(virAddrStart, 0, pageNum * PAGE_SIZE);
 
-    Lock_Lock(&kernelMemPool.memLock);
+    Lock_UnLock(&kernelMemPool.memLock);
     return virAddrStart;
 }
 
@@ -327,6 +335,196 @@ uintptr_t Mem_V2P(uintptr_t virAddr)
     /* 获取virAddr对应的页表物理地址 */
     uint32_t *pte = Mem_GetVirAddrPtePtr(virAddr);
     return (uintptr_t)((*pte & 0xfffff000) + (virAddr & 0x00000fff));
+}
+
+/* 初始化内核内存块描述符数组 */
+void Mem_BlockDescInit(MemBlockDesc *memBlockDesc)
+{
+    uint32_t blockSize = 16;
+    for (uint8_t i = 0; i < DESC_CNT; i++) {
+        /* 每个内存块大小 */
+        memBlockDesc[i].blockSize = blockSize;
+        memBlockDesc[i].blockPerArena = (PAGE_SIZE - sizeof(MemArena)) / blockSize;
+        List_Init(&memBlockDesc[i].freeList);
+
+        blockSize *= 2;
+    }
+}
+
+/* 获取arena中的第n个内存块 */
+static inline MemBlock *Mem_Arena2Block(const MemArena *arena, uint32_t n)
+{
+    return (MemBlock *)((uintptr_t)arena + sizeof(MemArena) + n * arena->desc->blockSize);
+}
+
+/* 获取arena中的第n个内存块 */
+static inline MemArena *Mem_Block2Arena(const MemBlock *memBlock)
+{
+    return (MemArena *)((uintptr_t)memBlock & 0xfffff000);
+}
+
+/* 解除虚拟地址页和物理地址的映射关系 */
+static void inline Mem_PageTableRemove(uintptr_t virAddr)
+{
+    uint32_t *pte = Mem_GetVirAddrPtePtr(virAddr);
+    /* 将P位置0，表示不可访问 */
+    *pte &= ~PG_P_1;
+    __asm__ volatile ("invlpg %0" : : "m"(virAddr) : "memory");
+
+    return;
+}
+
+/* 将n个虚拟地址页回收 */
+void Mem_FreeVirAddr(VirMemType type, void *virAddr, uint32_t pageCnt)
+{
+    uint32_t cnt = 0;
+    uint32_t bitIndex;
+    if (type == VIR_MEM_KERNEL) {
+        bitIndex = ((uintptr_t)virAddr - kernelVirMemPool.virtualAddrStart) / PAGE_SIZE;
+        while (cnt < pageCnt) {
+            ASSERT(BitmapGet(&kernelVirMemPool.bitmap, bitIndex) == 1);
+            BitmapSet(&kernelVirMemPool.bitmap, bitIndex + cnt, 0);
+            Mem_PageTableRemove((uintptr_t)virAddr + cnt * PAGE_SIZE);
+            cnt++;
+        }
+    } else if (type == VIR_MEM_USER) {
+        Task *currTask = Thread_GetRunningTask();
+        bitIndex = ((uintptr_t)virAddr - currTask->progVaddrPool.virtualAddrStart) / PAGE_SIZE;
+        while (cnt < pageCnt) {
+            ASSERT(BitmapGet(&currTask->progVaddrPool.bitmap, bitIndex) == 1);
+            BitmapSet(&currTask->progVaddrPool.bitmap, bitIndex + cnt, 0);
+            Mem_PageTableRemove((uintptr_t)virAddr + cnt * PAGE_SIZE);
+            cnt++;
+        }
+    }
+
+    return;
+}
+
+/* 将物理页回收 */
+void Mem_FreePhyAddr(uintptr_t phyAddr)
+{
+    uint32_t bitIndex;
+    MemPool *memPool = NULL;
+    if (phyAddr >= userMemPool.poolSize) {
+        /* 释放用户物理内存池 */
+        memPool = &userMemPool;
+        bitIndex = (phyAddr - userMemPool.phyAddrStart) / PAGE_SIZE;
+    } else {
+        memPool = &kernelMemPool;
+        bitIndex = (phyAddr - kernelMemPool.phyAddrStart) / PAGE_SIZE;
+    }
+
+    /* 对应的图位应该为1，只能释放已经分配的物理页 */
+    ASSERT(BitmapGet(&memPool->bitmap, bitIndex) == 1);
+    /* 将内存池对应位清0 */
+    BitmapSet(&memPool->bitmap, bitIndex, 0);
+
+    return;
+}
+
+/* 释放虚拟地址virAddr的n个页面 */
+void Mem_Free(VirMemType type, void *virAddr, uint32_t n)
+{
+    for (uint32_t i = 0; i < n; i++) {
+        /* 获取虚拟地址对应的物理地址 */
+        uintptr_t phyAddr = Mem_V2P((uintptr_t)virAddr + i * PAGE_SIZE);
+        Mem_FreePhyAddr(phyAddr);
+    }
+
+    /* 释放虚拟地址 */
+    Mem_FreeVirAddr(type, virAddr, n);
+
+    return;
+}
+
+/* 在堆上申请size大小字节内存 */
+void *Mem_Malloc(uint32_t size)
+{
+    VirMemType virMemType; 
+    MemPool *memPool = NULL;
+    MemBlockDesc *memBlockDesc = NULL;
+    /* 获取当前正在执行的任务 */
+    Task *currTask = Thread_GetRunningTask();
+    if (currTask->pgDir == NULL) {
+        /* 内核线程申请内存 */
+        virMemType = VIR_MEM_KERNEL;
+        memPool = &kernelMemPool;
+        memBlockDesc = kernelBlockDesc;
+    } else {
+        /* 用户进程申请内存 */
+        virMemType = VIR_MEM_USER;
+        memPool = &userMemPool;
+        memBlockDesc = currTask->memblockDesc;
+    }
+
+    /* 判断是否有足够则空间 */
+    if (size >= memPool->poolSize) {
+        return NULL;
+    }
+
+    Lock_Lock(&memPool->memLock);
+    MemArena *arena = NULL;
+    /* 如果分配的是大内存（超过1024字节，则整个页框分配）*/
+    if (size > 1024) {
+        uint32_t pageCnt = DIV_ROUND_UP(size + sizeof(MemArena), PAGE_SIZE);
+        /* 申请n个物理页框，并返回对应的虚拟地址 */
+        arena = Mem_MallocPages(virMemType, pageCnt);
+        if (arena == NULL) {
+            Lock_UnLock(&memPool->memLock);
+            return NULL;
+        }
+
+        /* 超过1024字节的内存块没有描述符 */
+        arena->desc = NULL;
+        arena->cnt = pageCnt;
+        arena->large = true;
+        Lock_UnLock(&memPool->memLock);
+        /* 跳过开头的存放arena的空间，后面才是真正分配使用的内存 */
+        return (void *)(arena + 1);
+    } else {
+        /* 分配小内存，先找到对应描述符 */
+        uint8_t idx = 0;;
+        while ((idx < DESC_CNT) && (memBlockDesc[idx].blockSize < size)) {
+            idx++;
+        }
+
+        ASSERT(idx < DESC_CNT);
+
+        /* 先判断对应的描述符数组中是否还有空闲块 */
+        if (List_IsEmpty(&memBlockDesc[idx].freeList)) {
+            /* 创建可用的内存空间 */
+            arena = Mem_MallocPages(virMemType, 1);
+            if (arena == NULL) {
+                Lock_UnLock(&memPool->memLock);
+                return NULL;
+            }
+
+            /* 将新创建的内存块划分成多个小块 */
+            arena->desc = &memBlockDesc[idx];
+            arena->cnt = memBlockDesc[idx].blockPerArena;
+            arena->large = false;
+
+            /* 关中断，将内存块描述符添加到freelist中 */
+            IntrStatus status = Idt_IntrDisable();
+            
+            for (uint8_t i = 0; i < arena->cnt; i++) {
+                MemBlock *memBlock = Mem_Arena2Block(arena, i);
+                ASSERT(List_Find(&arena->desc->freeList, &memBlock->freeNode) == false);
+                List_Append(&arena->desc->freeList, &memBlock->freeNode);
+            }
+
+            Idt_SetIntrStatus(status);
+        }
+
+        /* 取空闲列表头节点，分配使用 */
+        MemBlock *memBlock = (MemBlock *)List_Pop(&memBlockDesc[idx].freeList);
+        /* 所在的arena块空闲数量减1 */
+        arena = Mem_Block2Arena(memBlock);
+        arena->cnt--;
+        Lock_UnLock(&memPool->memLock);
+        return (void *)memBlock;
+    }
 }
 
 /* 内存管理模块初始化 */
@@ -343,5 +541,56 @@ void Mem_Init(void)
 
     Mem_PoolInit(memTotalSize);
 
+    /* 初始化内核内存块描述符数组 */
+    Mem_BlockDescInit(kernelBlockDesc);
+
     put_str("Mem_Init end. \n");
+}
+
+/* 系统调用相关函数实现 */
+
+void *sys_malloc(uint32_t size)
+{
+    return Mem_Malloc(size);
+}
+
+void sys_free(void *addr)
+{
+    ASSERT(addr != NULL);
+    if (addr == NULL) {
+        return;
+    }
+
+    VirMemType type;
+    MemPool *memPool = NULL;
+    /* 通过判断是线程还是进程，获取到虚拟地址的类型 */
+    if (Thread_GetRunningTask()->pgDir == NULL) {
+        /* 内核线程 */
+        type = VIR_MEM_KERNEL;
+        memPool = &kernelMemPool;
+    } else {
+        type = VIR_MEM_USER;
+        memPool = &userMemPool;
+    }
+
+    Lock_Lock(&memPool->memLock);
+    MemBlock *memBlock = (MemBlock *)addr;
+    MemArena *arena = Mem_Block2Arena(memBlock);
+    if (arena->large == true) {
+        /* 大于1024字节空间的内存块 */
+        Mem_Free(type, (void *)arena, arena->cnt);
+    } else {
+        /* 小于或等于1024字节内存块回收 */
+        List_Append(&arena->desc->freeList, &memBlock->freeNode);
+
+        /* 只有当整块arena空间都空闲才回收页框 */
+        arena->cnt++;
+        if (arena->cnt == arena->desc->blockPerArena) {
+            Mem_Free(type, (void *)arena, 1);
+        }
+    }
+    
+    Lock_UnLock(&memPool->memLock);
+
+    return;
 }

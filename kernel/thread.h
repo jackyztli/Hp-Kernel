@@ -91,6 +91,8 @@ typedef struct {
     uint32_t *pgDir;
     /* 进程自己页表虚拟地址管理池 */
     VirtualMemPool progVaddrPool;
+    /* 用户进程的虚拟地址 */
+    MemBlockDesc memblockDesc[DESC_CNT];
     /* 任务魔数，用于判断边界 */
     uint32_t stackMagic;
 } Task;

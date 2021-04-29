@@ -41,6 +41,22 @@ void ThreadB_Test(void *args)
 	Console_PutInt(g_procB);
 	Console_PutStr("\n");
 
+	void *addr = malloc(1025);
+	if (addr != NULL) {
+		Console_PutStr("malloc 1 success, addr is 0x");
+		Console_PutInt((uintptr_t)addr);
+		Console_PutStr("\n");
+	}
+
+	free(addr);
+	
+	addr = malloc(2048);
+	if (addr != NULL) {
+		Console_PutStr("malloc 2 success, addr is 0x");
+		Console_PutInt((uintptr_t)addr);
+		Console_PutStr("\n");
+	}
+	
 	while (1) {
 
 	}

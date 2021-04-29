@@ -20,6 +20,9 @@ void BitmapInit(Bitmap *bitmap);
 /* 在位图中查找n个连续可用的bit */
 int32_t BitmapScan(Bitmap *bitmap, uint32_t n);
 
+/* 获取位图bitIndex位函数 */
+uint32_t BitmapGet(Bitmap *bitmap, uint32_t bitIndex);
+
 /* 设置位图bitIndex的值 */
 void BitmapSet(Bitmap *bitmap, uint32_t bitIndex, uint8_t value);
 

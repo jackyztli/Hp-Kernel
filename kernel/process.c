@@ -121,7 +121,10 @@ void Process_Create(void *fileName, char *name)
     /* 4. 初始化虚拟内存池 */
     Process_VAddrBitmap(task);
 
-    /* 5. 设置中断状态 */
+    /* 5. 初始化进程私有的内存描述符数组 */
+    Mem_BlockDescInit(task->memblockDesc);
+
+    /* 6. 设置中断状态 */
     Idt_SetIntrStatus(status);
 
     return;
