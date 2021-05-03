@@ -21,6 +21,12 @@ typedef struct {
     List waiters;
 } Lock;
 
+/* 对锁进行P操作 */
+void Lock_P(Lock *lock);
+
+/* 对锁进行V操作 */
+void Lock_V(Lock *lock);
+
 /* 获取锁操作 */
 void Lock_Lock(Lock *lock);
 

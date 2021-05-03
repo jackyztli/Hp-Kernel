@@ -6,6 +6,7 @@
 
 #include "thread.h"
 #include "stdint.h"
+#include "kernel/global.h"
 #include "kernel/memory.h"
 #include "kernel/panic.h"
 #include "kernel/interrupt.h"
@@ -24,8 +25,6 @@ List threadAllList;
 /* 主线程PCB */
 Task *mainThreadTask;
 
-/* 结构体成员的偏移值 */
-#define OFFSET(struct_name, member) (int32_t)(&((struct_name *)0)->member)
 /* 切换到下一个任务 */
 void Thread_SwitchTo(Task *currTask, Task *nextTask);
 
@@ -170,6 +169,20 @@ void Thread_Schedule(void)
 
     /* 任务切换 */
     Thread_SwitchTo(currTask, nextTask);
+
+    return;
+}
+
+/* 任务主动让出cpu使用权 */
+void Thread_Yield(void)
+{
+    Task *currTask = Thread_GetRunningTask();
+    IntrStatus status = Idt_IntrDisable();
+    currTask->taskStatus = TASK_READY;
+    ASSERT(List_Find(&threadReadyList, &currTask->generalTag) == false);
+    List_Append(&threadReadyList, &currTask->generalTag);
+    Thread_Schedule();
+    Idt_SetIntrStatus(status);
 
     return;
 }

@@ -89,7 +89,7 @@ static void Idt_PciInit(void)
     put_str("Idt_PciInit start. \n");
 
     /* 初始化主片 */
-    outb(PIC_M_CTRL, 0x11);     // ICW1: 边缘触发，级联8259，需要ICW4
+    outb(PIC_M_CTRL, 0x11);      // ICW1: 边缘触发，级联8259，需要ICW4
     outb(PIC_M_DATA, 0x20);      // ICW2: 起始中断向量号为20，IR[0-7]为0x20 ~ 0x27
 
     outb(PIC_M_DATA, 0x04);      // ICW3：IR2接从片
@@ -103,8 +103,8 @@ static void Idt_PciInit(void)
     outb(PIC_S_DATA, 0x01);      // ICW4: 8086模式，正常EOI
 
     /* 只打开主片的IR0, 即只接受时钟中断 */
-    outb(PIC_M_DATA, 0xfe);
-    outb(PIC_S_DATA, 0xff);
+    outb(PIC_M_DATA, 0xf8);
+    outb(PIC_S_DATA, 0xbf);
 
     put_str("Idt_PciInit end. \n");
 }

@@ -12,7 +12,7 @@
 #include "lib/list.h"
 
 /* 对锁进行P操作 */
-static void Lock_P(Lock *lock)
+void Lock_P(Lock *lock)
 {
     /* 关中断，对锁的操作需要保证原子性 */
     IntrStatus status = Idt_IntrDisable();
@@ -34,7 +34,7 @@ static void Lock_P(Lock *lock)
 }
 
 /* 对锁进行V操作 */
-static void Lock_V(Lock *lock)
+void Lock_V(Lock *lock)
 {
     /* 关中断，对锁的操作需要保证原子性 */
     IntrStatus status = Idt_IntrDisable();

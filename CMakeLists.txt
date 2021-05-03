@@ -9,6 +9,7 @@ set(OUTPUT_DIR ${ROOT_DIR}/output)
 
 # 设置编译工具
 set(CMAKE_C_COMPILER "gcc")
+set(CMAKE_LD_LINKER "ld")
 set(CMAKE_C_FLAGS "-m32 -fno-builtin")
 set(CMAKE_ASM_COMPILER "nasm")
 

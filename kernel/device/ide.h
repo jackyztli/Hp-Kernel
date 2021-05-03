@@ -1,0 +1,53 @@
+/*
+ *  kernel/device/ide.h
+ *
+ *  (C) 2021  Jacky
+ */
+#ifndef IDE_H
+#define IDE_H
+
+#include "stdint.h"
+#include "kernel/sync.h"
+#include "kernel/bitmap.h"
+
+/* 分区结构 */
+typedef struct {
+    uint32_t startLBA;          /* 起始扇区 */
+    uint32_t secCnt;            /* 扇区数 */
+    struct _Disk *disk;         /* 分区所属的硬盘 */
+    ListNode partTag;           /* 用于队列中的标记 */
+    char name[8];               /* 分区名 */
+    struct SuperBlock *sb;      /* 超级块 */
+    Bitmap blockBitmap;         /* 块位图 */
+    Bitmap inodeBitmap;         /* i结点位图 */
+    List openINodes;            /* 本分区打开的i结点队列 */   
+} Partition;
+
+/* 硬盘结构 */
+typedef struct _Disk {
+    char name[8];                  /* 本硬盘名 */
+    struct _IdeChannel *channel;   /* 本硬盘归属的通道 */
+    uint8_t devNo;                 /* 本硬盘是主还是从 */
+    Partition primParts[4];        /* 主分区最多支持4个 */
+    Partition logicParts[8];       /* 逻辑分区最多支持8个 */
+} Disk;
+
+/* ata通道结构 */
+typedef struct _IdeChannel {
+    char name[8];           /* 本ata通道名 */
+    uint16_t portBase;      /* 本ata通道起始端口号 */
+    uint16_t irqNo;         /* 本通道所用的中断号 */
+    Lock lock;              /* 通道锁 */
+    bool expectingIntr;     /* 表示等到硬盘的中断 */
+    Lock diskDone;          /* 读写硬盘时由线程阻塞自己，等到读写结束后由中断唤醒 */
+    Disk devices[2];        /* 一个通道上连接连个硬盘，一主一从 */
+} IdeChannel;
+
+/* 从硬盘读取sec_cnt个扇区到buf */
+void Ide_Read(Disk *hd, uint32_t lba, void *buf, uint32_t secCnt);
+/* 将buf中sec_cnt扇区数据写入硬盘 */
+void Ide_Write(Disk * hd, uint32_t lba, void *buf, uint32_t secCnt);
+/* 硬盘数据结构初始化 */
+void Ide_Init(void);
+
+#endif

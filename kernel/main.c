@@ -18,6 +18,51 @@
 uint32_t g_procA = 0;
 uint32_t g_procB = 0;
 
+void ThreadA_Test(void *args);
+void ThreadB_Test(void *args);
+void ProcessA_Test(void);
+void ProcessB_Test(void);
+
+int main()
+{
+    put_str("I'm a Kernel\n");
+	
+	/* 初始化中断 */
+	Idt_Init();
+
+	/* 调整时钟中断周期 */
+	Timer_Init();
+
+	/* 初始化内存管理模块 */
+	Mem_Init();
+	
+	/* 初始化打印控制台 */
+	Console_Init();
+
+	/* 任务初始化 */
+    Thread_Init();
+
+	TSS_Init();
+	Syscall_Init();
+		
+	Process_Create(ProcessA_Test, "Process_1");
+	Process_Create(ProcessB_Test, "Process_2");
+
+	Task *task1 = Thread_Create("test_1", 8,  ThreadA_Test, "Test_1 ");
+	Task *task2 = Thread_Create("test_2", 32, ThreadB_Test, "Test_2 ");
+
+	/* 打开中断 */
+	Idt_IntrEnable();
+
+	Ide_Init();
+	
+	while (1) {
+		// Console_PutStr("Main ");
+	}
+
+    return 0;
+}
+
 void ThreadA_Test(void *args)
 {
 	Console_PutStr("ThreadA:0x");
@@ -78,42 +123,4 @@ void ProcessB_Test(void)
 	while (1) {
 		
 	}
-}
-
-int main()
-{
-    put_str("I'm a Kernel\n");
-	
-	/* 初始化中断 */
-	Idt_Init();
-
-	/* 调整时钟中断周期 */
-	Timer_Init();
-
-	/* 初始化内存管理模块 */
-	Mem_Init();
-	
-	/* 初始化打印控制台 */
-	Console_Init();
-
-	/* 任务初始化 */
-    Thread_Init();
-
-	TSS_Init();
-	Syscall_Init();
-		
-	Process_Create(ProcessA_Test, "Process_1");
-	Process_Create(ProcessB_Test, "Process_2");
-
-	Task *task1 = Thread_Create("test_1", 8,  ThreadA_Test, "Test_1 ");
-	Task *task2 = Thread_Create("test_2", 32, ThreadB_Test, "Test_2 ");
-
-	/* 打开中断 */
-	Idt_IntrEnable();
-
-	while (1) {
-		// Console_PutStr("Main ");
-	}
-
-    return 0;
 }

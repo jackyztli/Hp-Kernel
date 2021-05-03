@@ -116,6 +116,9 @@ void Thread_Block(TaskStatus status);
 /* 当前任务被唤醒 */
 void Thread_UnBlock(Task *task);
 
+/* 任务主动让出cpu使用权 */
+void Thread_Yield(void);
+
 /* 任务初始化 */
 void Thread_Init(void);
 

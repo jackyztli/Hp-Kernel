@@ -19,11 +19,14 @@ add_custom_command(
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-set(KERNEL_SRC main.c kernel.o syscall.c console.c process.c tss.c sync.c thread.c memory.c bitmap.c ${LIB_DIR}/list.c ${LIB_DIR}/string.c panic.c interrupt.c device/timer.c print.o switch.o)
+set(KERNEL_SRC main.c kernel.o syscall.c console.c process.c tss.c sync.c thread.c memory.c bitmap.c ${LIB_DIR}/list.c ${LIB_DIR}/string.c panic.c interrupt.c device/ide.c device/timer.c print.o switch.o)
+set(KERNEL_O main.o kernel.o syscall.o console.o process.o tss.o sync.o thread.o memory.o bitmap.o list.o string.o panic.o interrupt.o ide.o timer.o print.o switch.o)
 add_custom_command(
     OUTPUT kernel.bin
-    COMMAND ${CMAKE_C_COMPILER} -o kernel.bin ${KERNEL_SRC} -I${ROOT_DIR}/include/ -I${ROOT_DIR}/ -fno-stack-protector -fno-builtin -m32 -Ttext 0xc0001500 -e main
+    COMMAND ${CMAKE_C_COMPILER} -c ${KERNEL_SRC} -I${ROOT_DIR}/include/ -I${ROOT_DIR}/ -fno-stack-protector -fno-builtin -m32 -nostartfiles
+    COMMAND ${CMAKE_LD_LINKER} -o kernel.bin -melf_i386 -Ttext 0xc0001500 -e main -Map kernel.map ${KERNEL_O}
     COMMAND mv -f kernel.bin ${OUTPUT_DIR}
+    COMMAND mv -f kernel.map ${OUTPUT_DIR}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 

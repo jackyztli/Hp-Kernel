@@ -10,6 +10,7 @@
 #include "kernel/bitmap.h"
 #include "kernel/sync.h"
 #include "kernel/interrupt.h"
+#include "kernel/global.h"
 #include "lib/print.h"
 #include "lib/string.h"
 
@@ -29,9 +30,6 @@
 /* 获取页目录项或页表项宏 */
 #define PDE_INDEX(addr) ((addr & 0xffc00000) >> 22)
 #define PTE_INDEX(addr) ((addr & 0x003ff000) >> 12)
-
-/* 整除向上对齐 */
-#define DIV_ROUND_UP(X, STEP) ((X + STEP - 1) / STEP)
 
 /* 物理内存池 */
 typedef struct {

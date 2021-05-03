@@ -9,6 +9,7 @@
 #include "kernel/io.h"
 #include "kernel/interrupt.h"
 #include "kernel/thread.h"
+#include "kernel/global.h"
 #include "lib/print.h"
 
 #define COUNTER0_PORT      0x40
@@ -16,6 +17,8 @@
 #define INPUT_FREQUENCY    1193180
 #define IRQ0_FREQUENCY     100
 #define COUNTER0_FREQUENCY (INPUT_FREQUENCY / IRQ0_FREQUENCY)
+
+static uint32_t g_sysTicks = 0;
 
 /* 设置时钟中断周期 */
 static inline void Timer_SetFrequency(uint16_t timerFrequency)
@@ -42,12 +45,32 @@ static void Timer_IntrHandler(void)
 
     currTask->elapsedTicks++;
 
+    /* 系统ticks加1 */
+    g_sysTicks++;
+
     if (currTask->ticks == 0) {
         /* CPU时间已经用完，进行任务调度 */
         Thread_Schedule();
     } else {
         currTask->ticks--;
     }
+}
+
+/* 以tick位单位的sleep */
+static void Timer_SleepTicks(uint32_t ticks)
+{
+    uint32_t startTicks = g_sysTicks;
+    while (g_sysTicks - startTicks < ticks) {
+        /* sleep时间未到，继续让出CPU使用权 */
+        Thread_Yield();
+    }
+}
+
+/* 以毫秒为单位sleep */
+void Timer_SleepMTime(uint32_t mSeconds)
+{
+    uint32_t ticks = DIV_ROUND_UP(mSeconds, (1000 / IRQ0_FREQUENCY));
+    Timer_SleepTicks(ticks);
 }
 
 /* 初始化8253时钟 */
