@@ -10,6 +10,15 @@
 #include "kernel/sync.h"
 #include "kernel/bitmap.h"
 
+/* 系统支持最大硬盘设备数 */
+#define MAX_DISK_DEV_NUM 2
+/* 系统支持最大主分区数 */
+#define MAX_MAIN_PART_NUM 4
+/* 系统支持最大逻辑分区数 */
+#define MAX_LOGIN_PART_NUM 8
+/* 系统支持最大分区数，4个主分区 + 8个逻辑分区 */
+#define MAX_DISK_PART_NUM (MAX_MAIN_PART_NUM + MAX_LOGIN_PART_NUM)
+
 /* 分区结构 */
 typedef struct {
     uint32_t startLBA;          /* 起始扇区 */
@@ -28,8 +37,8 @@ typedef struct _Disk {
     char name[8];                  /* 本硬盘名 */
     struct _IdeChannel *channel;   /* 本硬盘归属的通道 */
     uint8_t devNo;                 /* 本硬盘是主还是从 */
-    Partition primParts[4];        /* 主分区最多支持4个 */
-    Partition logicParts[8];       /* 逻辑分区最多支持8个 */
+    Partition primParts[MAX_MAIN_PART_NUM];        /* 主分区最多支持4个 */
+    Partition logicParts[MAX_LOGIN_PART_NUM];       /* 逻辑分区最多支持8个 */
 } Disk;
 
 /* ata通道结构 */
@@ -42,6 +51,9 @@ typedef struct _IdeChannel {
     Lock diskDone;          /* 读写硬盘时由线程阻塞自己，等到读写结束后由中断唤醒 */
     Disk devices[2];        /* 一个通道上连接连个硬盘，一主一从 */
 } IdeChannel;
+
+extern uint8_t channelCnt;
+extern IdeChannel g_channels[2];
 
 /* 从硬盘读取sec_cnt个扇区到buf */
 void Ide_Read(Disk *hd, uint32_t lba, void *buf, uint32_t secCnt);

@@ -8,12 +8,14 @@
 #include "kernel/panic.h"
 #include "kernel/interrupt.h"
 #include "kernel/device/timer.h"
+#include "kernel/device/ide.h"
 #include "kernel/memory.h"
 #include "kernel/thread.h"
 #include "kernel/console.h"
 #include "kernel/process.h"
 #include "kernel/tss.h"
 #include "kernel/syscall.h"
+#include "fs/fs.h"
 
 uint32_t g_procA = 0;
 uint32_t g_procB = 0;
@@ -46,16 +48,18 @@ int main()
 	Syscall_Init();
 		
 	Process_Create(ProcessA_Test, "Process_1");
-	Process_Create(ProcessB_Test, "Process_2");
+	//Process_Create(ProcessB_Test, "Process_2");
 
 	Task *task1 = Thread_Create("test_1", 8,  ThreadA_Test, "Test_1 ");
-	Task *task2 = Thread_Create("test_2", 32, ThreadB_Test, "Test_2 ");
+	//Task *task2 = Thread_Create("test_2", 32, ThreadB_Test, "Test_2 ");
 
 	/* 打开中断 */
 	Idt_IntrEnable();
 
 	Ide_Init();
 	
+	FS_Init();
+
 	while (1) {
 		// Console_PutStr("Main ");
 	}

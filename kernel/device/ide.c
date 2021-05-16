@@ -12,6 +12,7 @@
 #include "kernel/io.h"
 #include "kernel/device/timer.h"
 #include "lib/string.h"
+#include "lib/stdio.h"
 
 /* 定义硬盘各寄存器的端口号 */
 #define reg_data(channel)	 (channel->portBase + 0)
@@ -68,14 +69,14 @@ typedef struct {
    uint8_t  endChs;		     // 结束柱面号
    uint32_t startLBA;		 // 本分区起始扇区的lba地址
    uint32_t secCnt; 		 // 本分区的扇区数目
-} PartitionTableEntry __attribute__ ((packed));	 // 保证此结构是16字节大小
+} __attribute__ ((packed)) PartitionTableEntry;	 // 保证此结构是16字节大小
 
 /* 引导扇区,mbr或ebr所在的扇区 */
 typedef struct {
    uint8_t  other[446];		                    // 引导代码
    PartitionTableEntry partitionTable[4];       // 分区表中有4项,共64字节
    uint16_t signature;		                    // 启动扇区的结束标志是0x55,0xaa,
-} BootSector __attribute__ ((packed));
+} __attribute__ ((packed)) BootSector;
 
 /* 选择读写的硬盘 */
 static inline void Ide_SelectDisk(Disk *hd)
@@ -209,7 +210,7 @@ void Ide_Read(Disk *hd, uint32_t lba, void *buf, uint32_t secCnt)
 
         /* 4 检测硬盘状态是否可读 */
         /* 醒来后开始执行下面代码*/
-        if (Ide_BusyWait(hd) != true) {	 
+        if (Ide_BusyWait(hd) == false) {	 
             /* 读失败 */
             Console_PutStr(hd->name);
             Console_PutStr(" read sector ");
@@ -257,7 +258,7 @@ void Ide_Write(Disk * hd, uint32_t lba, void *buf, uint32_t secCnt)
         /* 准备开始写数据 */
 
         /* 4 检测硬盘状态是否可读 */
-        if (Ide_BusyWait(hd) != true) {			      
+        if (Ide_BusyWait(hd) == false) {			      
             /* 命令发送失败 */
 	        Console_PutStr(hd->name);
             Console_PutStr(" write sector ");
@@ -364,7 +365,7 @@ static void Ide_PartitionScan(Disk *hd, uint32_t extLBA)
 	            hd->primParts[g_partitionNo].secCnt = p->secCnt;
 	            hd->primParts[g_partitionNo].disk = hd;
 	            List_Append(&g_partitionList, &hd->primParts[g_partitionNo].partTag);
-                strcpy(hd->primParts[g_partitionNo].name, hd->name);
+                sprintf(hd->primParts[g_partitionNo].name, "%s%d", hd->name, g_partitionNo + 1);
 	            g_partitionNo++;
                 /* 0,1,2,3 */
 	            ASSERT(g_partitionNo < 4);
@@ -374,7 +375,7 @@ static void Ide_PartitionScan(Disk *hd, uint32_t extLBA)
 	            hd->logicParts[g_loginNo].disk = hd;
 	            List_Append(&g_partitionList, &hd->logicParts[g_loginNo].partTag);
                 /* 逻辑分区数字是从5开始,主分区是1～4. */
-                strcpy(hd->logicParts[g_loginNo].name, hd->name);
+                sprintf(hd->logicParts[g_loginNo].name, "%s%d", hd->name, g_loginNo + 5);
 	            g_loginNo++;
                 /* 只支持8个逻辑分区,避免数组越界 */
 	            if (g_loginNo >= 8) {
@@ -424,6 +425,20 @@ void Ide_IntrHdHandler(uint8_t irqNo)
     }
 }
 
+void Ide_PartitionInfo(ListNode *listNode, void *arg)
+{
+    Partition *part = ELEM2ENTRY(Partition, partTag, listNode);
+    Console_PutStr("   ");
+    Console_PutStr(part->name);
+    Console_PutStr(" startLBA:0x");
+    Console_PutInt(part->startLBA);
+    Console_PutStr(", secCnt:0x");
+    Console_PutInt(part->secCnt);
+    Console_PutStr("\n");
+
+    return;
+}
+
 /* 硬盘数据结构初始化 */
 void Ide_Init(void)
 {
@@ -433,12 +448,14 @@ void Ide_Init(void)
     uint8_t channelNo = 0;
     uint8_t devNo = 0;
     ASSERT(hdNums > 0);
+    
+    List_Init(&g_partitionList);
 
     channelCnt = DIV_ROUND_UP(hdNums, 2);
     /* 初始化每一个通道 */
     for (uint8_t i = 0; i < channelCnt; i++) {
         IdeChannel *channel = &g_channels[i];
-        strcpy(channel->name, "ide");
+        sprintf(channel->name, "ide%d", channelNo);
         /* 为每个ide通道初始化端口基址及中断向量 */
         switch (channelNo) {
 	        case 0:
@@ -462,11 +479,12 @@ void Ide_Init(void)
         Idt_RagisterHandler(channel->irqNo, Ide_IntrHdHandler);
 
         /* 分别获取两个硬盘的参数及分区信息 */
-        while (devNo < 2) {
+        while (devNo < MAX_DISK_DEV_NUM) {
 	        Disk *hd = &channel->devices[devNo];
 	        hd->channel = channel;
 	        hd->devNo = devNo;
-            strcpy(hd->name, "sda");
+            sprintf(hd->name, "sd%c", 'a' + channelNo * 2 + devNo);
+
 	        Ide_IdentifyDisk(hd);	 /* 获取硬盘参数 */
 	        if (devNo != 0) {	     /* 内核本身的裸硬盘(hd60M.img)不处理 */
 	            Ide_PartitionScan(hd, 0);  /* 扫描该硬盘上的分区 */  
@@ -478,6 +496,9 @@ void Ide_Init(void)
         devNo = 0;			  	   /* 硬盘驱动器号置0,为下一个channel的两个硬盘初始化。 */
         channelNo++;			   /* 下一个channel */
     }
+
+    Console_PutStr("\n   all partition info\n");
+    List_Traversal(&g_partitionList, Ide_PartitionInfo, NULL);
 
     Console_PutStr("Ide_Init end.\n");
 

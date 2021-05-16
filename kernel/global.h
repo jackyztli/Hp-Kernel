@@ -73,9 +73,6 @@
 /* 整除向上对齐 */
 #define DIV_ROUND_UP(X, STEP) ((X + STEP - 1) / STEP)
 
-/* 结构体成员的偏移值 */
-#define OFFSET(struct_name, member) (int32_t)(&((struct_name *)0)->member)
-
 /* GDT描述符结构体 */
 typedef struct {
     uint16_t limitLowWord;

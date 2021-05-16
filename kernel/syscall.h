@@ -38,6 +38,8 @@ uint32_t write(const char *str);
 void *malloc(uint32_t size);
 void free(void *ptr);
 
+pid_t sys_getpid(void);
+
 /* 系统调用模块初始化 */
 void Syscall_Init(void);
 

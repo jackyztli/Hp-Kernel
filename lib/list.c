@@ -110,3 +110,15 @@ bool List_Find(const List *list, const ListNode *listNode)
 
     return false;
 }
+
+/* 遍历链表节点，对链表节点执行func(node)操作 */
+void List_Traversal(List *list, Func func, void *arg)
+{
+    ListNode *listNode = list->head.next;
+    while (listNode != &(list->tail)) {
+        func(listNode, arg);
+        listNode = listNode->next;
+    }
+
+    return;
+}

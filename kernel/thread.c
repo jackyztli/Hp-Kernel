@@ -135,8 +135,7 @@ static void Thread_MakeMainThread(void)
 /* 通过任务链表节点获取任务的PCB地址 */
 Task *Thread_GetTaskPCB(const ListNode *listNode)
 {
-    int32_t offset = OFFSET(Task, generalTag);
-    return (Task *)((uintptr_t)listNode - offset);
+    return ELEM2ENTRY(Task, generalTag, listNode);
 }
 
 /* 任务调度 */
@@ -192,7 +191,7 @@ void Thread_Block(TaskStatus status)
 {
     /* 任务阻塞只能是如下三种状态 */
     ASSERT((status == TASK_BLOCKED) || (status == TASK_WAITING) || (status == TASK_HANDING));
-    IntrStatus oldStatus = Idt_IntrEnable();
+    IntrStatus oldStatus = Idt_IntrDisable();
     Task *currTask = Thread_GetRunningTask();
     currTask->taskStatus = status;
     /* 重新调度给其他任务 */
