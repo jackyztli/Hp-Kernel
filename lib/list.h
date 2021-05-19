@@ -32,6 +32,8 @@ void List_Init(List *list);
 void List_Push(List *list, ListNode *listNode);
 /* 在尾部插入一个节点 */
 void List_Append(List *list, ListNode *listNode);
+/* 在链表中删除一个节点 */
+void List_Remove(ListNode *listNode);
 /* 判断是否为空链表 */
 bool List_IsEmpty(List *list);
 /* 从链表头弹出一个节点 */

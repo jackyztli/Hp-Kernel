@@ -63,3 +63,15 @@ uint32_t strlen(const char *str)
 
     return len; 
 }
+
+/* 比较两个字符串,若a_中的字符大于b_中的字符返回1,相等时返回0,否则返回-1. */
+int8_t strcmp(const char* a, const char* b)
+{
+   ASSERT(a != NULL && b != NULL);
+   while (*a != 0 && *a == *b) {
+      a++;
+      b++;
+   }
+
+   return *a < *b ? -1 : *a > *b;
+}

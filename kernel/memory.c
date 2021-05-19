@@ -584,6 +584,12 @@ void sys_free(void *addr)
         /* 只有当整块arena空间都空闲才回收页框 */
         arena->cnt++;
         if (arena->cnt == arena->desc->blockPerArena) {
+            for (uint32_t blockIndex = 0; blockIndex < arena->desc->blockPerArena; blockIndex++) {
+                MemBlock *memBlock = Mem_Arena2Block(arena, blockIndex);
+                ASSERT(List_Find(&arena->desc->freeList, &memBlock->freeNode) == true);
+                List_Remove(&memBlock->freeNode);
+            }
+
             Mem_Free(type, (void *)arena, 1);
         }
     }

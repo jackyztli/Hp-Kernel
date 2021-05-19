@@ -15,6 +15,8 @@
 #include "kernel/memory.h"
 #include "lib/string.h"
 
+Partition *g_curPartition;
+
 /* 格式化分区 */
 static void FS_PartitionFormat(Partition *part)
 {
@@ -179,6 +181,51 @@ static void FS_PartitionFormat(Partition *part)
     return;
 }
 
+/* 挂载硬盘分区 */
+static void FS_Mount(ListNode *partNode, void *arg)
+{
+    const char *partName = (const char *)arg;
+    const Partition *part = ELEM2ENTRY(Partition, partTag, partNode);
+    if (strcmp(part->name, partName) == 0) {
+        g_curPartition = part;
+
+        SuperBlock superBlock = {0};
+        /* 读入超级块 */
+        Ide_Read(part->disk, part->startLBA + 1, &superBlock, 1);
+
+        g_curPartition->sb = (SuperBlock *)sys_malloc(sizeof(SuperBlock));
+        if (g_curPartition->sb == NULL) {
+            PANIC("sys_malloc failed!");
+        }
+
+        memcpy(g_curPartition->sb, &superBlock, sizeof(SuperBlock));
+
+        g_curPartition->blockBitmap.bitmap = (uint8_t *)sys_malloc(superBlock.blockBitmapSects * SECTOR_PER_SIZE);
+        if (g_curPartition->blockBitmap.bitmap == NULL) {
+            PANIC("sys_malloc failed!");
+        }
+        g_curPartition->blockBitmap.bitmapLen = superBlock.blockBitmapSects * SECTOR_PER_SIZE;
+        /* 从硬盘读入位图信息 */
+        Ide_Read(part->disk, superBlock.blockBitmapLBA, g_curPartition->blockBitmap.bitmap, superBlock.blockBitmapSects);
+
+        g_curPartition->inodeBitmap.bitmap = (uint8_t *)sys_malloc(superBlock.inodeBitmapSects * SECTOR_PER_SIZE);
+        if (g_curPartition->inodeBitmap.bitmap == NULL) {
+            PANIC("sys_malloc failed!");
+        }
+        g_curPartition->blockBitmap.bitmapLen = superBlock.inodeBitmapSects * SECTOR_PER_SIZE;
+        /* 从硬盘读入inode位图 */
+        Ide_Read(part->disk, superBlock.inodeBitmapLBA, g_curPartition->inodeBitmap.bitmap, superBlock.inodeBitmapSects);
+
+        List_Init(&g_curPartition->openInodes);
+
+        Console_PutStr("mount ");
+        Console_PutStr(g_curPartition->name);
+        Console_PutStr(" done!\n");
+    }
+
+    return;
+}
+
 void FS_Init(void)
 {
     Console_PutStr("FS_Init Start.");
@@ -229,6 +276,9 @@ void FS_Init(void)
         /* 下一个通道 */
         channelNo++;
     }
+
+    /* 将sdb1分区挂载到系统 */
+    List_Traversal(&g_partitionList, FS_Mount, "sdb1");
 
     Console_PutStr("FS_Init End.");
 

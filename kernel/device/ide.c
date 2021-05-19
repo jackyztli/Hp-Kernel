@@ -379,6 +379,7 @@ static void Ide_PartitionScan(Disk *hd, uint32_t extLBA)
 	            g_loginNo++;
                 /* 只支持8个逻辑分区,避免数组越界 */
 	            if (g_loginNo >= 8) {
+                    sys_free(bs);
                     return;
                 }
             }

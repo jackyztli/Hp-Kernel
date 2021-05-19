@@ -64,6 +64,21 @@ void List_Append(List *list, ListNode *listNode)
     return;
 }
 
+/* 在链表中删除一个节点 */
+void List_Remove(ListNode *listNode)
+{
+    /* 链表为全局的，需要关中断保护 */
+    IntrStatus status = Idt_IntrDisable();
+
+    listNode->prev->next = listNode->next;
+    listNode->next->prev = listNode->prev;
+    
+    /* 处理完成后需要打开中断 */
+    Idt_SetIntrStatus(status);
+
+    return;
+}
+
 /* 判断是否为空链表 */
 bool List_IsEmpty(List *list)
 {

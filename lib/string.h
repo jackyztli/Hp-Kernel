@@ -16,5 +16,7 @@ void memcpy(void *dst, const void *src, uint32_t size);
 void strcpy(char *dst, const char *src);
 /* 返回字符串长度 */
 uint32_t strlen(const char *str);
+/* 比较字符串 */
+int8_t strcmp(const char *a, const char *b);
 
 #endif

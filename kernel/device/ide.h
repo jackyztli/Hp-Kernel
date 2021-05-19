@@ -29,7 +29,7 @@ typedef struct {
     struct SuperBlock *sb;      /* 超级块 */
     Bitmap blockBitmap;         /* 块位图 */
     Bitmap inodeBitmap;         /* i结点位图 */
-    List openINodes;            /* 本分区打开的i结点队列 */   
+    List openInodes;            /* 本分区打开的i结点队列 */   
 } Partition;
 
 /* 硬盘结构 */
@@ -54,6 +54,7 @@ typedef struct _IdeChannel {
 
 extern uint8_t channelCnt;
 extern IdeChannel g_channels[2];
+extern List g_partitionList;	 // 分区队列
 
 /* 从硬盘读取sec_cnt个扇区到buf */
 void Ide_Read(Disk *hd, uint32_t lba, void *buf, uint32_t secCnt);
