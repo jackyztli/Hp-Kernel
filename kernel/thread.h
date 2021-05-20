@@ -10,6 +10,8 @@
 #include "kernel/memory.h"
 #include "lib/list.h"
 
+#define MAX_FILES_OPEN_PER_PROC 8
+
 /* 进程或线程状态枚举 */
 typedef enum {
     TASK_RUNNING,
@@ -83,6 +85,8 @@ typedef struct {
     uint8_t ticks;
     /* 此任务自上cpu运行的时间 */
     uint32_t elapsedTicks;
+    /* 文件描述符数组 */
+    int32_t fdTable[MAX_FILES_OPEN_PER_PROC];
     /* 在一般链表中的节点，通常用于在运行链表中的阶段 */
     ListNode generalTag;
     /* 在所有线程队列中的节点 */

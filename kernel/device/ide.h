@@ -9,6 +9,7 @@
 #include "stdint.h"
 #include "kernel/sync.h"
 #include "kernel/bitmap.h"
+#include "fs/inode.h"
 
 /* 系统支持最大硬盘设备数 */
 #define MAX_DISK_DEV_NUM 2
@@ -26,7 +27,7 @@ typedef struct {
     struct _Disk *disk;         /* 分区所属的硬盘 */
     ListNode partTag;           /* 用于队列中的标记 */
     char name[8];               /* 分区名 */
-    struct SuperBlock *sb;      /* 超级块 */
+    SuperBlock *sb;      /* 超级块 */
     Bitmap blockBitmap;         /* 块位图 */
     Bitmap inodeBitmap;         /* i结点位图 */
     List openInodes;            /* 本分区打开的i结点队列 */   

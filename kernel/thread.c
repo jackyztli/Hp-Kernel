@@ -82,6 +82,14 @@ static inline void Thread_TaskInit(Task *task, const char *name, uint32_t priori
         return;
     }
 
+    
+    task->fdTable[0] = 0;
+    task->fdTable[1] = 1;
+    task->fdTable[2] = 2;
+    for (uint8_t i = 3; i < MAX_FILES_OPEN_PER_PROC; i++) {
+        task->fdTable[i] = -1;
+    }
+
     /* 中断栈放在PCB的最高处 */
     task->taskStack -= sizeof(IntrStack);
     /* 任务栈放在中断栈下面 */

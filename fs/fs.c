@@ -143,9 +143,9 @@ static void FS_PartitionFormat(Partition *part)
     /* 准备写inode_table中的第0项,即根目录所在的inode */
     memset(buf, 0, bufSize);  // 先清空缓冲区buf
     Inode* i = (Inode *)buf; 
-    i->i_size = superBlock.dirEntrySize * 2;	 // .和..
+    i->iSize = superBlock.dirEntrySize * 2;	 // .和..
     i->iNo = 0;   // 根目录占inode数组中第0个inode
-    i->i_sectors[0] = superBlock.dataStartLBA;	     // 由于上面的memset,i_sectors数组的其它元素都初始化为0 
+    i->iSectors[0] = superBlock.dataStartLBA;	     // 由于上面的memset,i_sectors数组的其它元素都初始化为0 
     Ide_Write(hd, superBlock.inodeTableLBA, buf, superBlock.inodeTableSects);
 
     /***************************************

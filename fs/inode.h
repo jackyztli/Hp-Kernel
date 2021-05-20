@@ -10,6 +10,7 @@
 #include "lib/list.h"
 
 #define SUPER_BLOCK_MAGIC 0x20210515
+#define MAX_SECTOR_PRE_INODE 13
 
 /* 超级块定义 */
 typedef struct {
@@ -40,11 +41,20 @@ typedef struct {
 
     /* 当此inode是文件时,i_size是指文件大小,
        若此inode是目录,i_size是指该目录下所有目录项大小之和 */
-    uint32_t i_size;
-    uint32_t i_open_cnts;   // 记录此文件被打开的次数
-    bool write_deny;	    // 写文件不能并行,进程写文件前检查此标识
-    uint32_t i_sectors[13]; /* i_sectors[0-11]是直接块, i_sectors[12]用来存储一级间接块指针 */
-    ListNode inode_tag;
+    uint32_t iSize;
+    uint32_t iOpenCnts;   // 记录此文件被打开的次数
+    bool writeDeny;	    // 写文件不能并行,进程写文件前检查此标识
+    uint32_t iSectors[MAX_SECTOR_PRE_INODE]; /* iSectors[0-11]是直接块, iSectors[12]用来存储一级间接块指针 */
+    ListNode inodeTag;
 } Inode;
+
+/* 将inode写入分区中 */
+void Inode_Write(Partition *part, const Inode *inode, void *ioBuf);
+/* 根据i节点号返回i节点 */
+Inode *Inode_Open(Partition *part, uint32_t inodeNo);
+/* 关闭inode */
+void Inode_Clode(Inode *inode);
+/* 初始化新的节点 */
+void Inode_Init(uint32_t inodeNo, Inode *inode);
 
 #endif
