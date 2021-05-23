@@ -8,6 +8,7 @@
 #include "stdint.h"
 #include "fs/inode.h"
 #include "fs/dir.h"
+#include "fs/file.h"
 #include "kernel/panic.h"
 #include "kernel/global.h"
 #include "kernel/device/ide.h"
@@ -16,6 +17,7 @@
 #include "lib/string.h"
 
 Partition *g_curPartition;
+extern File g_fileTable[MAX_FILE_OPEN];
 
 /* 格式化分区 */
 static void FS_PartitionFormat(Partition *part)
@@ -226,6 +228,116 @@ static void FS_Mount(ListNode *partNode, void *arg)
     return;
 }
 
+/* 将最上层的路径名称解析出来 */
+static char *FS_PathParse(char *pathName, char *nameStore)
+{
+    if (pathName[0] == '/' ) {
+        /* 根目录直接跳过，还要跳过连续多个/的情况，例如 ///ab/c */
+        while (*pathName == '/') {
+            pathName++;
+        }
+    }
+
+    while ((*pathName != '/') && (*pathName != 0)) {
+        *nameStore = *pathName;
+        nameStore++;
+        pathName++;
+    }
+
+    if (*pathName == 0) {
+        return NULL;
+    }
+
+    return pathName;
+}
+
+/* 返回路径深度 */
+int32_t FS_PathDepth(const char *pathName)
+{
+    ASSERT(pathName != NULL);    
+
+    char name[MAX_FILE_NAME_LEN] = {0};
+    char *p = FS_PathParse(pathName, name);
+
+    uint32_t depth = 0;
+    while (name[0] != 0) {
+        depth++;
+        memset(name, 0, MAX_FILE_NAME_LEN);
+        if (p != 0) {
+            p = FS_PathParse(p, name);
+        }
+    }
+
+    return depth;
+}
+
+/* 搜索文件pathName，若找到则返回其inode号，否则返回-1 */
+int32_t FS_SearchFile(const char *pathName, FilePathSearchRecord *searchedRecord)
+{
+    if ((strcmp(pathName, "/") == 0) || (strcmp(pathName, "/.") == 0) || (strcmp(pathName, "/..") == 0)) {
+        /* 查找路径是根目录 */
+        searchedRecord->parentDir = &g_rootDir;
+        searchedRecord->fileType = FT_DIRECTORY;
+        /* 搜索路径为空 */
+        searchedRecord->searchedRecord[0] = 0;
+        return g_rootDir.inode->iNo;
+    }
+
+    uint32_t pathLen = strlen(pathName);
+    ASSERT(pathName[0] == '/');
+    ASSERT(pathLen > 1);
+    ASSERT(pathLen < MAX_PATH_LEN);
+
+    Dir *parentDir = &g_rootDir;
+    searchedRecord->parentDir = parentDir;
+    searchedRecord->fileType = FT_UNKNOWN;
+    /* 父目录的inode号 */
+    uint32_t parentInodeNo = 0;
+
+    DirEntry dirEntry = {0};
+    /* name记录每次解析出来的路径名称，例如/a/b/c每次name数组的值为"a","b","c" */
+    char name[MAX_FILE_NAME_LEN] = {0};
+    char *subPath = FS_PathParse(pathName, name);
+    while (name[0] != 0) {
+        /* 记录查找过的路径，不能超过最大路径长度 */
+        ASSERT(strlen(searchedRecord->searchedRecord) < MAX_PATH_LEN);
+
+        strcat(searchedRecord->searchedRecord, "/");
+        strcat(searchedRecord->searchedRecord, name);
+
+        memset(&dirEntry, 0, sizeof(dirEntry));
+        /* 在所给的目录中查找文件 */
+        if (Dir_SearchDirEntry(g_curPartition, parentDir, name, &dirEntry) == true) {
+            if (dirEntry.fileType == FT_DIRECTORY) {
+                parentInodeNo = parentDir->inode->iNo;
+                Dir_Close(parentDir);
+                /* 更新父目录 */
+                parentDir = Dir_Open(&g_rootDir, dirEntry.iNo);
+                searchedRecord->parentDir = parentDir;
+            } else if (dirEntry.fileType == FT_REGULAR) {
+                searchedRecord->fileType = FT_REGULAR;
+                return dirEntry.iNo;
+            }
+        } else {
+            /* 若找不到目录项，要留着parentDir不要关闭，因为如果要创建新文件，要在parentDir中创建 */
+            return -1;
+        }
+
+        memset(name, 0, MAX_FILE_NAME_LEN);
+        if (subPath != NULL) {
+            subPath = FS_PathParse(subPath, name);
+        }
+    }
+
+    /* 执行到这里，表示pathName必然是一个完整路径（不会是文件，如果是文件前面已经返回） */
+    Dir_Close(searchedRecord->parentDir);
+
+    searchedRecord->parentDir = Dir_Open(g_curPartition, parentInodeNo);
+    searchedRecord->fileType = FT_DIRECTORY;
+
+    return dirEntry.iNo;
+}
+
 void FS_Init(void)
 {
     Console_PutStr("FS_Init Start.");
@@ -280,7 +392,16 @@ void FS_Init(void)
     /* 将sdb1分区挂载到系统 */
     List_Traversal(&g_partitionList, FS_Mount, "sdb1");
 
-    Console_PutStr("FS_Init End.");
+    /* 打开当前分区根目录 */
+    Dir_OpenRootDir(g_curPartition);
+
+    uint32_t fdIndex = 0;
+    while (fdIndex < MAX_FILE_OPEN) {
+        g_fileTable[fdIndex].fdInode = NULL;
+        fdIndex++;
+    }
+
+    Console_PutStr("FS_Init End.\n");
 
     return;
 }

@@ -8,6 +8,7 @@
 
 #include "stdint.h"
 #include "fs/inode.h"
+#include "kernel/device/ide.h"
 
 typedef struct {
     /* 文件操作偏移地址 */
@@ -36,5 +37,11 @@ typedef enum {
 
 /* 系统最大可打开文件数 */
 #define MAX_FILE_OPEN 32
+/* 分配一个扇区 */
+int32_t File_AllocBlockInBlockBitmap(Partition *part);
+void File_BitmapSync(Partition *part, uint32_t bitIndex, BitmapType bitmapType);
+
+/* 打开或创建文件系统调用实现，成功返回文件描述符，失败返回-1 */
+int32_t sys_open(const char *pathName, uint8_t flags);
 
 #endif

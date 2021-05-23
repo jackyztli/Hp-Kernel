@@ -16,6 +16,7 @@
 #include "kernel/tss.h"
 #include "kernel/syscall.h"
 #include "fs/fs.h"
+#include "fs/file.h"
 
 uint32_t g_procA = 0;
 uint32_t g_procB = 0;
@@ -60,6 +61,8 @@ int main()
 	
 	FS_Init();
 
+	sys_open("/file1", O_CREAT);
+	
 	while (1) {
 		// Console_PutStr("Main ");
 	}

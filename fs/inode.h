@@ -8,12 +8,17 @@
 
 #include "stdint.h"
 #include "lib/list.h"
+#include "kernel/device/ide.h"
 
 #define SUPER_BLOCK_MAGIC 0x20210515
 #define MAX_SECTOR_PRE_INODE 13
 
+#define MAX_DIRECT_BLOCK 12
+#define MAX_INDIRECT_BLOCK 128
+#define MAX_ALL_BLOCK (MAX_DIRECT_BLOCK + MAX_INDIRECT_BLOCK)
+
 /* 超级块定义 */
-typedef struct {
+typedef struct _SuperBlock {
     uint32_t magic;		    // 用来标识文件系统类型,支持多文件系统的操作系统通过此标志来识别文件系统类型
     uint32_t secSnt;		    // 本分区总共的扇区数
     uint32_t inodeCnt;		    // 本分区中inode数量
@@ -53,7 +58,7 @@ void Inode_Write(Partition *part, const Inode *inode, void *ioBuf);
 /* 根据i节点号返回i节点 */
 Inode *Inode_Open(Partition *part, uint32_t inodeNo);
 /* 关闭inode */
-void Inode_Clode(Inode *inode);
+void Inode_Close(Inode *inode);
 /* 初始化新的节点 */
 void Inode_Init(uint32_t inodeNo, Inode *inode);
 

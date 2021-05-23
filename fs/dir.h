@@ -8,13 +8,14 @@
 #include "stdint.h"
 #include "fs/inode.h"
 #include "fs/fs.h"
+#include "kernel/device/ide.h"
 
 /* 最大文件名长度 */
 #define MAX_FILE_NAME_LEN 16
 
 /* 目录结构 */
 typedef struct {
-    Inode* inode;
+    Inode *inode;
     /* 记录在目录内的偏移 */
     uint32_t dirPos;
     /* 目录的数据缓存 */
@@ -30,5 +31,18 @@ typedef struct  {
     /* 文件类型 */
     FileType fileType;
 } DirEntry;
+
+extern Dir g_rootDir;
+
+/* 查找目录或者文件 */
+bool Dir_SearchDirEntry(Partition *part, Dir *dir, const char *name, DirEntry *dirEntry);
+/* 打开目录 */
+Dir *Dir_Open(Partition *part, uint32_t inodeNo);
+/* 关闭目录 */
+void Dir_Close(Dir *dir);
+/* 将目录项dirEntry写入父目录parentDir中 */
+bool Dir_SyncDirEntry(Dir *parentDir, DirEntry *dirEntry, void *ioBuf);
+/* 打开根目录 */
+void Dir_OpenRootDir(Partition *part);
 
 #endif

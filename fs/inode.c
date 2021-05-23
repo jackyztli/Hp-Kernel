@@ -130,7 +130,7 @@ Inode *Inode_Open(Partition *part, uint32_t inodeNo)
 }
 
 /* 关闭inode */
-void Inode_Clode(Inode *inode)
+void Inode_Close(Inode *inode)
 {
     IntrStatus status = Idt_IntrDisable();
     inode->iOpenCnts--;

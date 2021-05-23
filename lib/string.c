@@ -67,11 +67,43 @@ uint32_t strlen(const char *str)
 /* 比较两个字符串,若a_中的字符大于b_中的字符返回1,相等时返回0,否则返回-1. */
 int8_t strcmp(const char* a, const char* b)
 {
-   ASSERT(a != NULL && b != NULL);
-   while (*a != 0 && *a == *b) {
-      a++;
-      b++;
-   }
+    ASSERT((a != NULL) && (b != NULL));
+    while ((*a != 0) && (*a == *b)) {
+        a++;
+        b++;
+    }
 
-   return *a < *b ? -1 : *a > *b;
+    return *a < *b ? -1 : *a > *b;
+}
+
+/* 拼接2个字符串 */
+void strcat(char* a, const char* b)
+{
+    ASSERT(a != NULL && b != NULL);
+    while (*b != 0) {
+        *a = *b;
+        a++;
+        b++;
+    }
+
+    a++;
+    *a = 0;
+
+    return;
+}
+
+/* 从后往前查找字符串str中首次出现字符ch的地址(不是下标,是地址) */
+char* strrchr(const char *str, const uint8_t ch)
+{
+    ASSERT(str != NULL);
+    const char *lastChar = NULL;
+    /* 从头到尾遍历一次,若存在ch字符，lastChar总是该字符最后一次出现在串中的地址(不是下标,是地址) */
+    while (*str != 0) {
+        if (*str == ch) {
+	        lastChar = str;
+        }
+        str++;
+    }
+   
+    return (char *)lastChar;
 }

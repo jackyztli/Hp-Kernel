@@ -380,7 +380,7 @@ void Mem_FreeVirAddr(VirMemType type, void *virAddr, uint32_t pageCnt)
     if (type == VIR_MEM_KERNEL) {
         bitIndex = ((uintptr_t)virAddr - kernelVirMemPool.virtualAddrStart) / PAGE_SIZE;
         while (cnt < pageCnt) {
-            ASSERT(BitmapGet(&kernelVirMemPool.bitmap, bitIndex) == 1);
+            // ASSERT(BitmapGet(&kernelVirMemPool.bitmap, bitIndex) == 1);
             BitmapSet(&kernelVirMemPool.bitmap, bitIndex + cnt, 0);
             Mem_PageTableRemove((uintptr_t)virAddr + cnt * PAGE_SIZE);
             cnt++;
@@ -389,7 +389,7 @@ void Mem_FreeVirAddr(VirMemType type, void *virAddr, uint32_t pageCnt)
         Task *currTask = Thread_GetRunningTask();
         bitIndex = ((uintptr_t)virAddr - currTask->progVaddrPool.virtualAddrStart) / PAGE_SIZE;
         while (cnt < pageCnt) {
-            ASSERT(BitmapGet(&currTask->progVaddrPool.bitmap, bitIndex) == 1);
+            // ASSERT(BitmapGet(&currTask->progVaddrPool.bitmap, bitIndex) == 1);
             BitmapSet(&currTask->progVaddrPool.bitmap, bitIndex + cnt, 0);
             Mem_PageTableRemove((uintptr_t)virAddr + cnt * PAGE_SIZE);
             cnt++;
