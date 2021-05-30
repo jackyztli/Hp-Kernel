@@ -23,8 +23,18 @@
     ret;                                                                              \
 })
 
+/* 三个参系统调用 */
+#define _syscall3(NUMBER, ARG1, ARG2, ARG3) ({                                        \
+    int32_t ret;                                                                      \
+    __asm__ volatile ("int $0x80"                                                     \
+    : "=a" (ret)                                                                      \
+    : "a" (NUMBER), "b" (ARG1), "c" (ARG2), "d" (ARG3): "memory");                    \
+    ret;                                                                              \
+})
+
 typedef enum {
     SYS_GETPID,
+    SYS_READ,
     SYS_WRITE,
     SYS_MALLOC,
     SYS_FREE,
@@ -34,7 +44,8 @@ typedef enum {
 
 /* 用户态系统调用API */
 pid_t getpid(void);
-uint32_t write(const char *str);
+int32_t read(int32_t fd, void *buf, uint32_t count)
+int32_t write(int32_t fd, const void *buf, uint32_t count);
 void *malloc(uint32_t size);
 void free(void *ptr);
 

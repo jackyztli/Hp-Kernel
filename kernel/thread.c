@@ -73,21 +73,20 @@ static inline void Thread_TaskInit(Task *task, const char *name, uint32_t priori
     task->elapsedTicks = 0;
     task->pgDir = NULL;
     task->stackMagic = 0x19AE1617;
-
     task->taskStatus = TASK_READY;
-    if (task == mainThreadTask) {
-        /* 如果是main任务，其已经正在运行状态了 */
-        task->taskStatus = TASK_RUNNING;
-        /* main任务已经设置了相应的寄存器，无需重复设置 */
-        return;
-    }
 
-    
     task->fdTable[0] = 0;
     task->fdTable[1] = 1;
     task->fdTable[2] = 2;
     for (uint8_t i = 3; i < MAX_FILES_OPEN_PER_PROC; i++) {
         task->fdTable[i] = -1;
+    }
+
+    if (task == mainThreadTask) {
+        /* 如果是main任务，其已经正在运行状态了 */
+        task->taskStatus = TASK_RUNNING;
+        /* main任务已经设置了相应的寄存器，无需重复设置 */
+        return;
     }
 
     /* 中断栈放在PCB的最高处 */

@@ -17,7 +17,6 @@
 #include "lib/string.h"
 
 Partition *g_curPartition;
-extern File g_fileTable[MAX_FILE_OPEN];
 
 /* 格式化分区 */
 static void FS_PartitionFormat(Partition *part)
@@ -401,7 +400,7 @@ void FS_Init(void)
         fdIndex++;
     }
 
-    Console_PutStr("FS_Init End.\n");
+    Console_PutStr("FS_Init End.");
 
     return;
 }

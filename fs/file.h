@@ -37,11 +37,18 @@ typedef enum {
 
 /* 系统最大可打开文件数 */
 #define MAX_FILE_OPEN 32
+extern File g_fileTable[MAX_FILE_OPEN];
+
 /* 分配一个扇区 */
 int32_t File_AllocBlockInBlockBitmap(Partition *part);
 void File_BitmapSync(Partition *part, uint32_t bitIndex, BitmapType bitmapType);
-
 /* 打开或创建文件系统调用实现，成功返回文件描述符，失败返回-1 */
 int32_t sys_open(const char *pathName, uint8_t flags);
+/* 关闭文件系统调用 */
+int32_t sys_close(int32_t fd);
+/* 根据进程里的文件描述符id获取全局文件描述符id */
+uint32_t File_Local2Global(uint32_t localFd);
+/* 将缓冲区的count个字节写入file，成功则返回写入的字节数，否则返回-1 */
+int32_t File_Write(File *file, const char *buf, uint32_t count);
 
 #endif

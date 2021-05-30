@@ -61,8 +61,17 @@ int main()
 	
 	FS_Init();
 
-	sys_open("/file1", O_CREAT);
-	
+	int32_t fd = sys_open("/file1", O_RDWR);
+	Console_PutStr("fd: ");
+	Console_PutInt(fd);
+	Console_PutStr("\n");
+
+	sys_write(fd, "hello world\n", 12);
+
+	sys_close(fd);
+	Console_PutStr("fd: ");
+	Console_PutInt(fd);
+	Console_PutStr(" closed now\n");
 	while (1) {
 		// Console_PutStr("Main ");
 	}
@@ -117,7 +126,7 @@ void ThreadB_Test(void *args)
 void ProcessA_Test(void)
 {
 	g_procA = getpid();
-	write("In ProcessA_Test\n");
+	write(STDOUT_NO, "In ProcessA_Test\n", 1024);
 	while (1) {
 
 	}
@@ -126,7 +135,7 @@ void ProcessA_Test(void)
 void ProcessB_Test(void)
 {
 	g_procB = getpid();
-	write("In ProcessB_Test\n");
+	write(STDOUT_NO, "In ProcessB_Test\n", 1024);
 	while (1) {
 		
 	}

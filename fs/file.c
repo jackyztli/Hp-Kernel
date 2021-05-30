@@ -8,6 +8,7 @@
 #include "kernel/console.h"
 #include "kernel/thread.h"
 #include "kernel/panic.h"
+#include "kernel/interrupt.h"
 #include "fs/fs.h"
 #include "fs/dir.h"
 #include "kernel/device/ide.h"
@@ -149,6 +150,52 @@ rollback:
     return -1;
 }
 
+/* 打开inode对应的文件，成功则返回文件描述符，失败则返回-1 */
+int32_t File_Open(uint32_t inodeNo, uint8_t flags)
+{
+    int32_t fdIndex = File_GetFreeFd();
+    if (fdIndex == -1) {
+        Console_PutStr("exceed max open files\n");
+        return -1;
+    }
+
+    g_fileTable[fdIndex].fdInode = Inode_Open(g_curPartition, inodeNo);
+    /* 每次打开文件，要将fdPos还原为0，即让文件内的指针指向开头 */
+    g_fileTable[fdIndex].fdPos = 0;
+    g_fileTable[fdIndex].fdFlag = flags;
+    bool *writeDeny = &g_fileTable[fdIndex].fdInode->writeDeny;
+
+    /* 如果是写文件，则要考虑多个进程同时读写的情况 */
+    if ((flags & O_WRONLY) || (flags & O_RDWR)) {
+        IntrStatus status = Idt_IntrDisable();
+        if (!(*writeDeny)) {
+            /* 当前没有其他进程在写该文件，直接占用 */
+            *writeDeny = true;
+            Idt_SetIntrStatus(status);
+        } else {
+            Idt_SetIntrStatus(status);
+            Console_PutStr("file can't be write now, try again later\n");
+            return -1;
+        }
+    }
+
+    return File_AddFdToTask(fdIndex);
+}
+
+/* 关闭文件操作 */
+int32_t File_Close(File *file)
+{
+    if (file == NULL) {
+        return -1;
+    }
+
+    file->fdInode->writeDeny = false;
+    Inode_Close(file->fdInode);
+    file->fdInode = NULL;
+
+    return 0;
+}
+
 /* 打开或创建文件系统调用实现，成功返回文件描述符，失败返回-1 */
 int32_t sys_open(const char *pathName, uint8_t flags)
 {
@@ -209,11 +256,337 @@ int32_t sys_open(const char *pathName, uint8_t flags)
             break;
     
         default:
+            /* 其余情况均为已存在的文件 */
+            fd = File_Open(inodeNo, flags);
             break;
     }
 
     /* 返回的是pcb里fdTable数组中的元素下标，而不是全局的g_fileTable的下标 */
     return fd;
+}
+
+/* 根据进程里的文件描述符id获取全局文件描述符id */
+uint32_t File_Local2Global(uint32_t localFd)
+{
+    Task *task = Thread_GetRunningTask();
+    int32_t globalFd = task->fdTable[localFd];
+    ASSERT((globalFd >= 0) && (globalFd < MAX_FILE_OPEN));
+    return (uint32_t)globalFd;
+}
+
+/* 关闭文件系统调用 */
+int32_t sys_close(int32_t fd)
+{
+    if (fd <= 2) {
+        return  -1;
+    }
+
+    uint32_t globalFd = File_Local2Global(fd);
+    /* 任务fdTable表对应项不可用 */
+    Thread_GetRunningTask()->fdTable[fd] = -1;
+    return File_Close(&g_fileTable[globalFd]);
+}
+
+/* 文件内容读取，成功则返回读取文件的长度，失败返回-1 */
+int32_t File_Read(File *file, void *buf, uint32_t count)
+{
+    /* 如果读取的字节数超过文件可读剩余量，则用剩余量作为待读取的字节数 */
+    uint32_t needReadSize = (file->fdPos + count) > file->fdInode->iSize ? (file->fdInode->iSize - file->fdPos) : count;
+    uint32_t leftReadSize = needReadSize;
+    if (leftReadSize == 0) {
+        /* 无需读取 */
+        return -1;
+    }
+
+    uint8_t *ioBuf = sys_malloc(BLOCK_PER_SIZE);
+    if (ioBuf == NULL) {
+        Console_PutStr("sys_malloc failed!!!\n");
+        return -1;
+    }
+
+    uint32_t *allBlocks = (uint32_t *)sys_malloc((12 * 4) + BLOCK_PER_SIZE);
+    if (allBlocks == NULL) {
+        sys_free(ioBuf);
+        Console_PutStr("File_Write：sys_malloc failed!!!\n");
+        return -1;
+    }
+
+    uint32_t startBlock = file->fdPos / BLOCK_PER_SIZE;
+    uint32_t endBlock = (file->fdPos + needReadSize) / BLOCK_PER_SIZE;
+    uint32_t readBlocks = endBlock - startBlock;
+
+    uint32_t blockIndex = 0;
+    uint32_t indirectBlockTable = 0;
+    if (readBlocks == 0) {
+        /* 不涉及跨区读 */
+        if (endBlock < MAX_DIRECT_BLOCK) {
+            blockIndex = endBlock;
+            allBlocks[blockIndex] = file->fdInode->iSectors[blockIndex];
+        } else {
+            indirectBlockTable = file->fdInode->iSectors[MAX_DIRECT_BLOCK];
+            Ide_Read(g_curPartition->disk, indirectBlockTable, allBlocks + MAX_DIRECT_BLOCK, 1);
+        }
+    } else {
+        /* 读取多个块，有如下三种情况 */
+        /* 情况1：起始块和终止块都属于直接块 */
+        if (endBlock < MAX_DIRECT_BLOCK) {
+            blockIndex = startBlock;
+            while (blockIndex <= endBlock) {
+                allBlocks[blockIndex] = file->fdInode->iSectors[blockIndex];
+                blockIndex++;
+            }
+        } else if ((startBlock < MAX_DIRECT_BLOCK) && (endBlock >= MAX_DIRECT_BLOCK)) {
+            /* 情况2：跨过直接块和间接块读取 */
+            blockIndex = startBlock;
+            while (blockIndex < MAX_DIRECT_BLOCK) {
+                allBlocks[blockIndex] = file->fdInode->iSectors[blockIndex];
+                blockIndex++;
+            }
+            ASSERT(file->fdInode->iSectors[MAX_DIRECT_BLOCK] != 0);
+            indirectBlockTable = file->fdInode->iSectors[MAX_DIRECT_BLOCK];
+            Ide_Read(g_curPartition->disk, indirectBlockTable, allBlocks + MAX_DIRECT_BLOCK, 1);
+        } else 3
+            /* 情况2：在间接块读取 */
+            ASSERT(file->fdInode->iSectors[MAX_DIRECT_BLOCK] != 0);
+            indirectBlockTable = file->fdInode->iSectors[MAX_DIRECT_BLOCK];
+            Ide_Read(g_curPartition->disk, indirectBlockTable, allBlocks + MAX_DIRECT_BLOCK, 1);
+        }
+    }
+
+    /* 已经读取的字节数 */
+    uint32_t bytesRead = 0;
+    uint8_t *bufTemp = (uint8_t *)buf;
+    while (bytesRead < needReadSize) {
+        uint32_t secIndex = file->fdPos / BLOCK_PER_SIZE;
+        uint32_t secLBA = allBlocks[secIndex];
+        uint32_t secOffBytes = file->fdPos % BLOCK_PER_SIZE;
+        uint32_t secLeftBytes = BLOCK_PER_SIZE - secOffBytes;
+
+        /* 待读入的数据大小 */
+        chunkSize = leftReadSize < secLeftBytes ? leftReadSize : secLeftBytes;
+
+        memset(ioBuf, 0, BLOCK_PER_SIZE);
+        Ide_Read(g_curPartition->disk, secLBA, ioBuf, 1);
+        memcpy(bufTemp, ioBuf + secLeftBytes, chunkSize);
+
+        bufTemp += chunkSize;
+        file->fdPos += chunkSize;
+        bytesRead += chunkSize;
+        leftReadSize -= chunkSize;
+    }
+
+    sys_free(allBlocks);
+    sys_free(ioBuf);
+
+    return bytesRead;
+}
+
+/* 将缓冲区的count个字节写入file，成功则返回写入的字节数，否则返回-1 */
+int32_t File_Write(File *file, const char *buf, uint32_t count)
+{
+    /* 一个inode最多支持140个扇区 */
+    if ((file->fdInode->iSize + count) > (MAX_SECTOR_PRE_INODE) * 512) {
+        /* 超过最大可支持字节数 */
+        Console_PutStr("exceed max file size 140 * 512 bytes, write file failed\n");
+        return -1;
+    }
+
+    /* 文件第一次写 */
+    if (file->fdInode->iSectors[0] == 0) {
+        int32_t blockLBA = File_AllocBlockInBlockBitmap(g_curPartition);
+        if (blockLBA == -1) {
+            Console_PutStr("File_Write: File_AllocBlockInBlockBitmap failed\n");
+            return -1;
+        }
+
+        file->fdInode->iSectors[0] = blockLBA;
+        File_BitmapSync(g_curPartition, blockLBA - g_curPartition->sb->dataStartLBA, BLOCK_BITMAP);
+    }
+
+    uint8_t *ioBuf = sys_malloc(SECTOR_PER_SIZE);
+    if (ioBuf == NULL) {
+        Console_PutStr("sys_malloc failed!!!\n");
+        return -1;
+    }
+
+    uint32_t *allBlocks = (uint32_t *)sys_malloc((12 * 4) + BLOCK_PER_SIZE);
+    if (allBlocks == NULL) {
+        sys_free(ioBuf);
+        Console_PutStr("File_Write：sys_malloc failed!!!\n");
+        return -1;
+    }
+
+    /* 当前已经用的扇区数 */
+    uint32_t blocksHasUsed = file->fdInode->iSize / BLOCK_PER_SIZE + 1;
+    /* 继续写入count字节后，共使用的扇区数 */
+    uint32_t blocksWillUsed = (file->fdInode->iSize + count) / BLOCK_PER_SIZE + 1;
+    ASSERT(blocksWillUsed <= MAX_SECTOR_PRE_INODE);
+
+    /* 需要新增的扇区数 */
+    uint32_t blocksNeedAdd = blocksWillUsed - blocksHasUsed;
+
+    /* 需要开始写的扇区 */
+    uint32_t blockIndex = 0;
+    uint32_t indirectBlockTable = 0;
+    int32_t blockLBA = -1;
+    /* 无需新增扇区 */
+    if (blocksNeedAdd == 0) {
+        if (blocksWillUsed <= MAX_DIRECT_BLOCK) {
+            blockIndex = blocksHasUsed - 1;
+            /* 指向最后一个已有数据的扇区 */
+            allBlocks[blockIndex] = file->fdInode->iSectors[blockIndex];
+        } else {
+            /* 需要在间接块中写入数据，这时候间接块应该已经存在 */
+            ASSERT(file->fdInode->iSectors[MAX_DIRECT_BLOCK] != 0);
+            indirectBlockTable = file->fdInode->iSectors[MAX_DIRECT_BLOCK];
+            /* 将间接块读入内存中 */
+            Ide_Read(g_curPartition->disk, indirectBlockTable, allBlocks + MAX_DIRECT_BLOCK, 1);
+        }
+    } else {
+        /* 本次写入有增量扇区，需要判断写在直接扇区还是间接扇区 */
+        /* 情况1：直接写在直接扇区 */
+        if (blocksWillUsed <= MAX_DIRECT_BLOCK) {
+            blockIndex = blocksHasUsed - 1;
+            ASSERT(file->fdInode->iSectors[blockIndex] != 0);
+            allBlocks[blockIndex] = file->fdInode->iSectors[blockIndex];
+
+            /* 再将需要新增的扇区分配好 */
+            blockIndex = blocksHasUsed;
+            while (blockIndex < blocksWillUsed) {
+                blockLBA = File_AllocBlockInBlockBitmap(g_curPartition);
+                if (blockLBA == -1) {
+                    /* 扇区分配失败 */
+                    sys_free(ioBuf);
+                    sys_free(allBlocks);
+                    Console_PutStr("File_Write：alloc block failed!!!\n");
+                    return -1;
+                }
+
+                ASSERT(file->fdInode->iSectors[blockIndex] == 0);
+                file->fdInode->iSectors[blockIndex] = blockLBA;
+                allBlocks[blockIndex] = blockLBA;
+
+                /* 同步到硬盘 */
+                File_BitmapSync(g_curPartition, blockLBA - g_curPartition->sb->dataStartLBA, BLOCK_BITMAP);
+                blockIndex++;
+            }
+        } else if ((blocksHasUsed <= MAX_DIRECT_BLOCK) && (blocksWillUsed > MAX_DIRECT_BLOCK)) {  
+            /* 情况2：旧数据在直接块，新数据在间接块 */
+            blockIndex = blocksHasUsed - 1;
+            allBlocks[blockIndex] = file->fdInode->iSectors[blockIndex];
+
+            /* 申请间接块 */
+            blockLBA = File_AllocBlockInBlockBitmap(g_curPartition);
+            if (blockLBA == -1) {
+                /* 扇区分配失败 */
+                sys_free(ioBuf);
+                sys_free(allBlocks);
+                Console_PutStr("File_Write：alloc block failed!!!\n");
+                return -1;
+            }
+
+            ASSERT(file->fdInode->iSectors[MAX_DIRECT_BLOCK] == 0);
+            file->fdInode->iSectors[MAX_DIRECT_BLOCK] = blockLBA;
+            
+            blockIndex = blocksHasUsed;
+            while (blockIndex < blocksWillUsed) {
+                /* 申请块 */
+                blockLBA = File_AllocBlockInBlockBitmap(g_curPartition);
+                if (blockLBA == -1) {
+                    /* 扇区分配失败 */
+                    sys_free(ioBuf);
+                    sys_free(allBlocks);
+                    Console_PutStr("File_Write：alloc block failed!!!\n");
+                    return -1;
+                }
+
+                if (blockIndex < MAX_DIRECT_BLOCK) {
+                    /* 直接块 */
+                    ASSERT(file->fdInode->iSectors[blockIndex] == 0);
+                    file->fdInode->iSectors[blockIndex] = blockLBA;
+                    allBlocks[blockIndex] = blockLBA;
+                } else {
+                    /* 间接块只写allBlocks，最终一次性刷入硬盘 */
+                    allBlocks[blockIndex] = blockLBA;
+                }
+
+                File_BitmapSync(g_curPartition, blockLBA - g_curPartition->sb->dataStartLBA, 1);
+                blockIndex++;
+            }
+            /* 间接块写入硬盘 */
+            Ide_Write(g_curPartition->disk, indirectBlockTable, allBlocks + MAX_DIRECT_BLOCK, 1);
+        } else {
+            /* 情况3：旧数据已经在间接块 */
+            ASSERT(file->fdInode->iSectors[MAX_DIRECT_BLOCK] != 0);
+            indirectBlockTable = file->fdInode->iSectors[MAX_DIRECT_BLOCK];
+
+            /* 从硬盘中读入 */
+            Ide_Read(g_curPartition->disk, indirectBlockTable, allBlocks + MAX_DIRECT_BLOCK, 1);
+
+            blockIndex = blocksHasUsed;
+            while (blockIndex < blocksWillUsed) {
+                /* 申请块 */
+                blockLBA = File_AllocBlockInBlockBitmap(g_curPartition);
+                if (blockLBA == -1) {
+                    /* 扇区分配失败 */
+                    sys_free(ioBuf);
+                    sys_free(allBlocks);
+                    Console_PutStr("File_Write：alloc block failed!!!\n");
+                    return -1;
+                }
+
+                allBlocks[blockIndex] = blockLBA;
+                File_BitmapSync(g_curPartition, blockLBA - g_curPartition->sb->dataStartLBA, 1);
+                blockIndex++;
+            }
+            /* 间接块写入硬盘 */
+            Ide_Write(g_curPartition->disk, indirectBlockTable, allBlocks + MAX_DIRECT_BLOCK, 1);
+        }
+    }
+
+    /* 需要用到的块地址都已经添加都allBlocks中 */
+    file->fdPos = file->fdInode->iSize - 1;
+    /* 写第一块扇区时要注意剩余空间可能不足一块 */
+    bool isFirstWrite = true;
+    /* 已经写入的数据 */
+    uint32_t bytesWritten = 0;
+    /* 未写入的数据 */
+    uint32_t bytesLeft = count;
+    const char *bufTemp = buf;
+    while (bytesWritten < count) {
+        uint32_t secIndex = file->fdInode->iSize / BLOCK_PER_SIZE;
+        uint32_t secLBA = allBlocks[secIndex];
+        memset(ioBuf, 0, SECTOR_PER_SIZE);
+        if (isFirstWrite) {
+            /* 可能不足一个扇区 */
+            Ide_Read(g_curPartition->disk, secLBA, ioBuf, 1);
+            isFirstWrite = false;
+        }
+
+        uint32_t secOffBytes = file->fdInode->iSize % BLOCK_PER_SIZE;
+        uint32_t secLeftBytes = BLOCK_PER_SIZE - secOffBytes;
+        /* 本次要写入的字节数 */
+        uint32_t chunkSize = bytesLeft > secLeftBytes ? secLeftBytes : bytesLeft;
+        memcpy(ioBuf + secOffBytes, bufTemp, chunkSize);
+        Ide_Write(g_curPartition->disk, secLBA, ioBuf, 1);
+
+        Console_PutStr("file write at lba 0x");
+        Console_PutInt(secLBA);
+        Console_PutStr("\n");
+
+        bufTemp += chunkSize;
+        bytesWritten += chunkSize;
+        bytesLeft -= bytesLeft;
+        file->fdInode->iSize += chunkSize;
+        file->fdPos += chunkSize;
+    }
+
+    /* file的inode信息已经更新，重新写回到硬盘中 */
+    Inode_Write(g_curPartition, file->fdInode, ioBuf);
+    sys_free(ioBuf);
+    sys_free(allBlocks);
+
+    return bytesWritten;
 }
 
 void File_BitmapSync(Partition *part, uint32_t bitIndex, BitmapType bitmapType)

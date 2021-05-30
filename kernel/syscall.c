@@ -9,6 +9,8 @@
 #include "kernel/thread.h"
 #include "kernel/console.h"
 #include "kernel/panic.h"
+#include "fs/fs.h"
+#include "fs/file.h"
 #include "lib/string.h"
 
 typedef void *syscall_handler;
@@ -24,16 +26,54 @@ pid_t getpid(void)
     return _syscall0(SYS_GETPID);
 }
 
-uint32_t sys_write(const char *str)
+int32_t sys_read(int32_t fd, void *buf, uint32_t count)
 {
-    ASSERT(str != NULL);
-    Console_PutStr(str);
-    return  strlen(str);
+    ASSERT(buf != NULL);
+
+    if (fd < 0) {
+        Console_PutStr("sys_read: fd error\n");
+        return -1;
+    }
+
+    uint32_t globalFd = File_Local2Global(fd);
+    return File_Read(&g_fileTable[globalFd], buf, count);
 }
 
-uint32_t write(const char *str)
+int32_t read(int32_t fd, void *buf, uint32_t count)
 {
-    return _syscall1(SYS_WRITE, str);
+    return _syscall3(SYS_READ, fd, buf, count);
+}
+
+int32_t sys_write(int32_t fd, const void *buf, uint32_t count)
+{
+    ASSERT(buf != NULL);
+
+    if (fd < 0) {
+        Console_PutStr("sys_write: fd error\n");
+        return -1;
+    }
+
+    if (fd == STDOUT_NO) {
+        const char *str = buf;
+        Console_PutStr(str);
+        return strlen(str);
+    }
+
+    uint32_t globalFd = File_Local2Global(fd);
+    File *file = &g_fileTable[globalFd];
+    if ((file->fdFlag & O_WRONLY) || (file->fdFlag & O_RDWR)) {
+        uint32_t bytesWritten = File_Write(file, buf, count);
+        return bytesWritten;
+    }
+    
+    /* 没有读写权限 */
+    Console_PutStr("sys_write: no allowed to write file\n");
+    return -1;
+}
+
+int32_t write(int32_t fd, const void *buf, uint32_t count)
+{
+    return _syscall3(SYS_WRITE, fd, buf, count);
 }
 
 void *malloc(uint32_t size)
@@ -51,6 +91,7 @@ void Syscall_Init(void)
 {
     Console_PutStr("Syscall_Init start.\n");    
     syscall_table[SYS_GETPID] = sys_getpid;
+    syscall_table[SYS_READ] = sys_read;
     syscall_table[SYS_WRITE] = sys_write;
     syscall_table[SYS_MALLOC] = sys_malloc;
     syscall_table[SYS_FREE] = sys_free;
