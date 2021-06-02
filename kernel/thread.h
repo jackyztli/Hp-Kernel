@@ -97,6 +97,8 @@ typedef struct {
     VirtualMemPool progVaddrPool;
     /* 用户进程的虚拟地址 */
     MemBlockDesc memblockDesc[DESC_CNT];
+    /* 记录任务的工作目录inode编号 */
+    uint32_t cwdIndoe;
     /* 任务魔数，用于判断边界 */
     uint32_t stackMagic;
 } Task;

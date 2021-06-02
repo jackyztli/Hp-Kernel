@@ -72,6 +72,8 @@ static inline void Thread_TaskInit(Task *task, const char *name, uint32_t priori
     task->ticks = priority;
     task->elapsedTicks = 0;
     task->pgDir = NULL;
+    /* 以根目录为默认工作路径 */
+    task->cwdIndoe = 0;
     task->stackMagic = 0x19AE1617;
     task->taskStatus = TASK_READY;
 

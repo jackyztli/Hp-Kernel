@@ -9,6 +9,7 @@
 #include "kernel/device/ide.h"
 #include "kernel/panic.h"
 #include "kernel/interrupt.h"
+#include "kernel/console.h"
 #include "fs/fs.h"
 #include "lib/string.h"
 
@@ -74,6 +75,82 @@ void Inode_Write(Partition *part, const Inode *inode, void *ioBuf)
     Ide_Read(part->disk, inodePosition.secLAB, ioBuf, secCnt);
     memcpy(ioBuf + inodePosition.offSize, &pureInode, sizeof(pureInode));
     Ide_Write(part->disk, inodePosition.secLAB, ioBuf, secCnt);
+
+    return;
+}
+
+/* 回收一个inode结点 */
+void Inode_Delete(Partition *part, uint32_t inodeNo, void *ioBuf)
+{
+    ASSERT(inodeNo < 4096);
+    InodePosition inodePos = {0};
+    Inode_Locate(part, inodeNo, &inodePos);
+
+    ASSERT(inodePos.secLAB <= (part->startLBA + part->secCnt));
+
+    uint32_t sectorNum = 1;
+    if (inodePos.twoSec) {
+        /* inode跨区，需要读取两个扇区 */
+        sectorNum = 2;
+    }
+
+    /* inode跨区，需要读取两个扇区 */
+    Ide_Read(part->disk, inodePos.secLAB, ioBuf, sectorNum);
+    memset(ioBuf + inodePos.offSize, 0, sizeof(Inode));
+    Ide_Write(part->disk, inodePos.secLAB, ioBuf, sectorNum);
+
+    return;
+}
+
+/* 回收inode的数据块 */
+void Inode_Release(Partition *part, uint32_t inodeNo)
+{
+    Inode *inodeDelete = Inode_Open(part, inodeNo);
+    ASSERT(inodeDelete->iNo == inodeNo);
+
+    /* 1. 回收所有inode的块 */
+    uint32_t blockIndex = 0;
+    uint32_t allBlocks[MAX_ALL_BLOCK] = {0};
+    whlile (blockIndex < MAX_DIRECT_BLOCK) {
+        allBlocks[blockIndex] = inodeDelete->iSecotr[blockIndex];
+        blockIndex++;
+    }
+
+    /* 处理一级表 */
+    if (inodeDelete->iSecotr[MAX_DIRECT_BLOCK] != 0) {
+        Ide_Read(part->disk, inodeDelete->iSecotr[MAX_DIRECT_BLOCK], allBlocks + MAX_DIRECT_BLOCK, 1);
+        /* 回收一级页表所占的扇区 */
+        uint32_t blockBitmapIndex = inodeDelete->iSecotr[MAX_DIRECT_BLOCK] - part->sb->dataStartLBA;
+        ASSERT(blockBitmapIndex > 0);
+        BitmapSet(&part->blockBitmap, blockBitmapIndex, 0);
+        File_BitmapSync(part, blockBitmapIndex, BLOCK_BITMAP);
+    }
+
+    blockIndex = 0;
+    while (blockIndex < MAX_DIRECT_BLOCK) {
+        if (allBlocks[blockIndex] > 0) {
+            uint32_t blockBitmapIndex = allBlocks[blockIndex] - part->sb->dataStartLBA;
+            ASSERT(blockBitmapIndex > 0);
+            BitmapSet(&part->blockBitmap, blockBitmapIndex, 0);
+            File_BitmapSync(part, blockBitmapIndex, BLOCK_BITMAP);
+        }
+
+        blockIndex++;
+    }
+
+    /* 2. 回收该inode所占的inode空间 */
+    BitmapSet(&part->inodeBitmap, inodeNo, 0);
+    File_BitmapSync(part, inodeNo, INODE_BITMAP);
+    /* 最多涉及两个块的读取 */
+    uint8_t *ioBuf = sys_malloc(1024);
+    if (ioBuf == NULL) {
+        Console_PutStr("inode_release:sys_malloc error.\n");
+        return;
+    }
+    Inode_Delete(part, inodeNo, ioBuf);
+    sys_free(ioBuf);
+
+    Inode_Close(inodeDelete);
 
     return;
 }

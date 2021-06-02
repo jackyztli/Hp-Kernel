@@ -23,6 +23,13 @@
 
 extern Partition *g_curPartition;
 
+/* 文件读写偏移 */
+typedef enum {
+    SEEK_SET,
+    SEEK_CUR,
+    SEEK_END
+} FileSeek;
+
 /* 文件类型 */
 typedef enum {
     /* 未知文件类型 */
@@ -53,11 +60,20 @@ typedef struct {
     FileType fileType;
 } FilePathSearchRecord;
 
+/* 文件属性 */
+typedef struct {
+    uint32_t iNo;
+    uint32_t size;
+    FileType fileType;
+} Stat;
+
 /* 文件系统初始化 */
 void FS_Init(void);
 /* 返回路径深度 */
 int32_t FS_PathDepth(const char *pathName);
 /* 搜索文件pathName，若找到则返回其inode号，否则返回-1 */
 int32_t FS_SearchFile(const char *pathName, FilePathSearchRecord *searchedRecord);
+/* 回收inode的数据块 */
+void Inode_Release(Partition *part, uint32_t inodeNo);
 
 #endif

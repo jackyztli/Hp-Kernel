@@ -404,3 +404,421 @@ void FS_Init(void)
 
     return;
 }
+
+/* 删除文件，成功返回0，失败返回-1 */
+int32_t sys_unlink(const char *pathName)
+{
+    ASSERT(strlen(pathName) < MAX_PATH_LEN);
+
+    /* 检查待删除的文件是否存在 */
+    FilePathSearchRecord searchedRecord = {0};
+    int32_t inodeNo = FS_SearchFile(pathName);
+    ASSERT(inodeNo != 0);
+    if (inodeNo == -1) {
+        Console_PutStr("file ");
+        Console_PutStr(pathName);
+        Console_PutStr(" not found!\n");
+        Dir_Close(searchedRecord.parentDir);
+        return -1;
+    }
+
+    if (searchedRecord.fileType == FT_DIRECTORY) {
+        Console_PutStr("can't delete a directory with unlink(), use rmdir() to instead\n");
+        Dir_Close(searchedRecord.parentDir);
+        return -1;
+    }
+
+    uint32_t fileIndex = 0;
+    while (fileIndex < MAX_FILE_OPEN) {
+        if ((g_fileTable[fileIndex].fdInode != NULL) && 
+            (g_fileTable[fileIndex].fdInode->iNo == (uint32_t)inodeNo)) {
+                break;
+            }
+        fileIndex++;
+    }
+
+    if (fileIndex < MAX_FILE_OPEN) {
+        Dir_Close(searchedRecord.parentDir);
+        Console_PutStr("file ");
+        Console_PutStr(pathName);
+        Console_PutStr(" is in use, not allow to delete!\n");
+        return -1;
+    }
+
+    ASSERT(fileIndex == MAX_FILE_OPEN);
+
+    void *ioBuf = sys_malloc(SECTOR_PER_SIZE + SECTOR_PER_SIZE);
+    if (ioBuf == NULL) {
+        Dir_Close(searchedRecord.parentDir);
+        Console_PutStr("sys_unlink: malloc for ioBuf failed\n");
+        return -1;
+    }
+
+    Dir *parentDir = searchedRecord.parentDir;
+    Dir_DeleteDirEntry(g_curPartition, parentDir, inodeNo, ioBuf);
+    Inode_Release(g_curPartition, inodeNo);
+    sys_free(ioBuf);
+    Dir_Close(searchedRecord.parentDir);
+
+    return 0;
+}
+
+/* 创建目录，成功返回0，失败返回-1 */
+int32_t sys_mkdir(const char *pathName)
+{
+    uint8_t rollBackStep = 0;
+    void *ioBuf = sys_malloc(SECTOR_PER_SIZE * 2);
+    if (ioBuf == NULL) {
+        Console_PutStr("sys_mkdir: sys_malloc for ioBuf failed\n");
+        return -1;
+    }
+
+    FilePathSearchRecord searchedRecord = {0};
+    int32_t inodeNo = FS_SearchFile(pathName, &searchedRecord);
+    if (inodeNo != -1) {
+        Console_PutStr("sys_mkdir: file or directory ");
+        Console_PutStr(pathName);
+        Console_PutStr(" exist!\n");
+        rollBackStep = 1;
+        goto rollback;
+    } else {
+        uint32_t pathNameDepth = FS_PathDepth(pathName);
+        uint32_t pathSearchedDepth = FS_PathDepth(searchedRecord.parentDir);
+        if (pathNameDepth != pathSearchedDepth) {
+            /* 说明并没有访问到全部的路径，某个中间路径不存在 */
+            Console_PutStr("sys_mkdir: cannot access ");
+            Console_PutStr(pathName);
+            Console_PutStr(": Not a directory, subpath ");
+            Console_PutStr(searchedRecord.searchedRecord);
+            Console_PutStr(" is't exist\n");
+            rollBackStep = 1;
+            goto rollback;
+        }
+    }
+
+    Dir *parentDir = searchedRecord.parentDir;
+    char *dirName = strrchr(searchedRecord.searchedRecord, '/') + 1;
+    inodeNo = File_AllocBlockInBlockBitmap(g_curPartition);
+    if (inodeNo == -1) {
+        Console_PutStr("sys_mkdir: allocate inode failed\n");
+        rollBackStep = 1;
+        goto rollback;
+    }
+
+    Inode newDirInode = {0};
+    Inode_Init(inodeNo, &newDirInode);
+
+    uint32_t blockBitmapIndex = 0;
+    uint32_t blockLBA = File_AllocBlockInBlockBitmap(g_curPartition);
+    if (blockLBA == -1) {
+        Console_PutStr("sys_mkdir: alloc block bitmap for create directory failed\n");
+        rollBackStep = 2;
+        goto rollback;
+    }
+
+    newDirInode.iSectors[0] = blockLBA;
+    blockBitmapIndex = blockLBA - g_curPartition->sb->dataStartLBA;
+    ASSERT(blockBitmapIndex != 0);
+    File_BitmapSync(g_curPartition, blockBitmapIndex, BLOCK_BITMAP);
+
+    memset(ioBuf, 0, SECTOR_PER_SIZE * 2);
+    DirEntry  *dirEntry = (DirEntry *)ioBuf;
+
+    /* 创建目录时，默认创建.和.. */
+    memcpy(dirEntry->fileName, ".", 1);
+    dirEntry->iNo = inodeNo;
+    dirEntry->fileType = FT_DIRECTORY;
+
+    dirEntry++;
+
+    /* 创建目录时，默认创建.和.. */
+    memcpy(dirEntry->fileName, "..", 2);
+    dirEntry->iNo = parentDir->inode->iNo;
+    dirEntry->fileType = FT_DIRECTORY;
+    Ide_Write(g_curPartition->disk, newDirInode.iSectors[0], ioBuf, 1);
+
+    DirEntry newDirEntry = {0};
+    Dir_CreateDirEntry(dirName, inodeNo, FT_DIRECTORY, &newDirEntry);
+    memset(ioBuf, 0, SECTOR_PER_SIZE * 2);
+
+    if (Dir_SyncDirEntry(parentDir, &newDirEntry, ioBuf) {
+        Console_PutStr("sys_mkdir: sync direntry to disk failed\n");
+        rollBackStep = 2;
+        goto rollback;
+    }
+
+    /* 父目录的inode同步到硬盘 */
+    memset(ioBuf, 0, SECTOR_PER_SIZE * 2);
+    Inode_Write(g_curPartition, parentDir->inode, ioBuf);
+
+    /* 将新创建目录的inode同步到硬盘 */
+    memset(ioBuf, 0, SECTOR_PER_SIZE * 2);
+    File_BitmapSync(g_curPartition, inodeNo, INODE_BITMAP);
+
+    sys_free(ioBuf);
+    Dir_Close(searchedRecord.parentDir);
+
+    return 0;
+
+rollback:
+    switch (rollBackStep) {
+        case 2:
+            BitmapSet(&g_curPartition->inodeBitmap, inodeNo, 0);
+
+        case 1:
+            Dir_Close(searchedRecord.parentDir);
+            break;
+    }
+
+    sys_free(ioBuf);
+    return -1;
+}
+
+/* 打开目录，成功返回目录指针，失败返回NULL */
+Dir *sys_opendir(const char *name)
+{
+    ASSERT(strlen(name) < MAX_FILE_OPEN);
+    if ((name[0] == '/') && ((name[1] == 0) || (name[0] == '.')) {
+        return &g_rootDir;
+    }
+
+    /* 检查待打开的目录是否存在 */
+    FilePathSearchRecord searchedRecord = {0};
+
+    int32_t inodeNo = FS_SearchFile(name, &searchedRecord);
+    Dir *ret = NULL;
+    if (inodeNo == -1) {
+        Console_PutStr("In ");
+        Console_PutStr(name);
+        Console_PutStr(", sub path ");
+        Console_PutStr(searchedRecord.searchedRecord);
+        Console_PutStr(" not exist\n");
+    } else {
+        if (searchedRecord.fileType == FT_REGULAR) {
+            Console_PutStr(name);
+            Console_PutStr(" is regular file!\n");
+        } else if (searchedRecord.fileType == FT_DIRECTORY) {
+            ret = Dir_Open(g_curPartition, inodeNo);
+        }
+    }
+
+    Dir_Close(searchedRecord.parentDir);
+    return ret;
+}
+
+/* 关闭目录，成功返回0，失败返回-1 */
+int32_t sys_closedir(Dir *dir)
+{
+    int32_t ret = -1;
+    if (dir != NULL) {
+        Dir_Close(dir);
+        ret = 0;
+    }
+
+    return ret;
+}
+
+/* 读取目录dir中的一个目录项，成功后返回其目录项地址，到目录尾时或出错返回NULL */
+DirEntry *sys_readdir(Dir *dir)
+{
+    ASSERT(dir != NULL);
+    return Dir_Read(dir);
+}
+
+/* 把目录dir的指针dirPos置0 */
+void sys_rewinddir(Dir *dir)
+{
+    dir->dirPos = 0;
+}
+
+
+/* 删除空目录，成功返回0，失败返回-1 */
+int32_t sys_rmdir(const char *pathName)
+{
+    FilePathSearchRecord searchedRecord = {0};
+    int32_t inodeNo = FS_SearchFile(pathName, &searchedRecord);
+    ASSERT(inodeNo != 0);
+    int32_t retval = -1;
+    if (inodeNo == -1) {
+        Console_PutStr("In ");
+        Console_PutStr(pathName);
+        Console_PutStr(", sub path ");
+        Console_PutStr(searchedRecord.searchedRecord);
+        Console_PutStr(" not exist\n");
+    } else {
+        if (searchedRecord.fileType == FT_REGULAR) {
+            Console_PutStr(pathName);
+            Console_PutStr(" is regular file!\n");
+        } else {
+            Dir *dir = Dir_Open(g_curPartition, inodeNo);
+            if (!Dir_IsEmpty(dir)) {
+                Console_PutStr("dir ");
+                Console_PutStr(pathName);
+                Console_PutStr(" is not empty, it is not allowed to delete!\n");
+            } else {
+                if (!Dir_Remove(searchedRecord.parentDir, dir)) {
+                    retval = 0;
+                }
+            }
+            Dir_Close(dir);
+        }
+    }
+
+    Dir_Close(searchedRecord.parentDir);
+    return retval;
+}
+
+/* 获得父目录的inode编号 */
+static uint32_t FS_GetParentDirInode(uint32_t childInode, void *ioBuf)
+{
+    Inode *childDirInode = Inode_Open(g_curPartition, childInode);
+    uint32_t blockLBA = childDirInode->iSectors[0];
+    ASSERT(blockLBA >= g_curPartition->sb->dataStartLBA);
+    Inode_Close(childDirInode);
+    Ide_Read(g_curPartition->disk, blockLBA, ioBuf, 1);
+    DirEntry *dirEntry = (DirEntry *)ioBuf;
+    ASSERT((dirEntry[1].iNo < 4096) && (dirEntry[1].fileType == FT_DIRECTORY));
+    return dirEntry[1].iNo;
+}
+
+static int32_t FS_GetChildDirName(uint32_t parentInode, uint32_t childInode, char *path, void *ioBuf)
+{
+    Inode *parentDirInode = Inode_Open(g_curPartition, parentInode);
+    uint8_t blockIndex = 0;
+    uint32_t allBlocks[MAX_ALL_BLOCK] = {0};
+    uint32_t blockCnt = MAX_DIRECT_BLOCK;
+    whle (blockIndex < MAX_DIRECT_BLOCK) {
+        allBlocks[blockIndex] = parentDirInode->iSectors[blockIndex];
+        blockIndex++:
+    }
+
+    if (parentDirInode->iSectors[MAX_DIRECT_BLOCK]) {
+        Ide_Read(g_curPartition->disk, parentDirInode->iSectors[MAX_DIRECT_BLOCK], allBlocks + MAX_DIRECT_BLOCK, 1);
+        blockCnt = MAX_ALL_BLOCK;
+    }
+
+    Inode_Close(parentDirInode);
+
+    DirEntry *dirEntry = (DirEntry *)ioBuf;
+    uint32_t dirEntrySize = g_curPartition->sb->dirEntrySize;
+    uint32_t dirEntryPerSize = SECTOR_PER_SIZE / dirEntrySize;
+
+    blockIndex = 0;
+    while (blockIndex < blockCnt) {
+        if (allBlocks[blockIndex]) {
+            Ide_Read(g_curPartition->disk, allBlocks[blockIndex], ioBuf, 1);
+            uint8_t dirEntryIndex = 0;
+            while (dirEntrySize < dirEntryPerSize) {
+                if ((dirEntry + dirEntryIndex)->iNo == childInode) {
+                    strcat(path, "/");
+                    strcat(path, (DirEntry + dirEntryIndex)->fileName);
+                    return 0;
+                }
+                dirEntryIndex++;
+            }
+        }
+        blockIndex++;
+    }
+
+    return -1;
+}
+
+/* 获取当前任务工作路径的绝对路径 */
+char *sys_getcwd(char *buf, uint32_t size)
+{
+    ASSERT(buf != NULL);
+    void *ioBuf = sys_malloc(SECTOR_PER_SIZE);
+    if (ioBuf == NULL) {
+        return NULL;
+    }
+
+    Task *curTask = Thread_GetRunningTask();
+    int32_t parentInode = 0;
+    int32_t childInode = curTask->cwdIndoe;
+    ASSERT((childInode > 0) && (childInode < 4096));
+
+    if (childInode == 0) {
+        buf[0] = '/';
+        buf[1] = 0;
+        return buf;
+    }
+
+    memset(buf, 0, size);
+    char fullPathReverse[MAX_PATH_LEN] = {0};
+
+    /* 往上搜索，找到根目录为止 */
+    while (childInode) {
+        parentInode = FS_GetParentDirInode(childInode, ioBuf);
+        if (FS_GetChildDirName(parentInode, childInode, fullPathReverse, ioBuf) == -1) {
+            sys_free(ioBuf);
+            return NULL;
+        }
+
+        childInode = parentInode;
+    }
+
+    ASSERT(strlen(fullPathReverse) <= size);
+
+    char *lastSlash;
+    while (lastSlash = strrchr(fullPathReverse, '/')) {
+        uint16_t len = strlen(buf);
+        strcpy(buf + len, lastSlash);
+        *lastSlash = NULL;
+    }
+
+    sys_free(ioBuf);
+
+    return buf;
+}
+
+/* 更改当前工作目录为绝对路径path，成功返回0， 失败返回-1 */
+int32_t sys_chdir(const char *path)
+{
+    int32_t ret = -1;
+    FilePathSearchRecord searchedRecord = {0};
+    int32_t inodeNo = FS_SearchFile(path, &searchedRecord);
+    if (inodeNo != -1) {
+        if (searchedRecord.fileType == FT_DIRECTORY) {
+            Thread_GetRunningTask()->cwdIndoe = inodeNo;
+            ret = 0;
+        } else {
+            Console_PutStr("sys_chdir: ");
+            Console_PutStr(path);
+            Console_PutStr(" is regular file or other!");
+        }
+    }
+
+    Dir_Close(searchedRecord.parentDir);
+    return ret;
+}
+
+/* 在buf中填充文件结构相关信息，成功返回0，失败返回-1 */
+int32_t sys_stat(const char *path, Stat *buf)
+{
+    if ((!strcmp(path, "/")) || (!strcmp(path, "/.")) || (!strcmp(path, "/.."))) {
+        buf->fileType = FT_DIRECTORY;
+        buf->iNo = 0;
+        buf->size = g_rootDir.inode->iSize;
+        return 0;
+    }
+
+    int32_t ret = -1;
+    FilePathSearchRecord searchedRecord = {0};
+    int32_t inodeNo = FS_SearchFile(path, &searchedRecord);
+    if (inodeNo != -1) {
+        Inode *inode = Inode_Open(g_curPartition, inodeNo);
+        buf->size = inode->iSize;
+        Inode_Close(inode);
+        buf->fileType = searchedRecord.fileType;
+        buf->iNo = inodeNo;
+        ret = 0;
+    } else {
+        Console_PutStr("sys_stat: ");
+        Console_PutStr(path);
+        Console_PutStr(" not found\n");
+    }
+
+    Dir_Close(searchedRecord.parentDir);
+
+    return ret;
+}

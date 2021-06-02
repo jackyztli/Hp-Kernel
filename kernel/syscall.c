@@ -71,6 +71,46 @@ int32_t sys_write(int32_t fd, const void *buf, uint32_t count)
     return -1;
 }
 
+/* 重置文件读写偏移指针，成功返回新的偏移量，否则返回-1 */
+int32_t sys_lseek(int32_t fd, int32_t offset, FileSeek seekType)
+{
+    if (fd < 0) {
+        Console_PutStr("sys_lseek: fd error\n");
+        return -1;
+    }
+
+    ASSERT((seekType >= SEEK_SET) && (seekType =< SEEK_END));
+
+    int32_t globalFd = File_Local2Global(fd);
+    File *file = &g_fileTable[globalFd];
+    int32_t fileSize = (int32_t)file->fdInode->iSize;
+    int32_t newPos = 0;
+    switch (seekType) {
+        case SEEK_SET:
+            newPos = offset;
+            break;
+        
+        case SEEK_CUR:
+            newPos = (int32_t)file->fdPos + offset;
+            break;
+
+        case SEEK_END:
+            newPos = fileSize;
+            break;
+    }
+
+    if ((newPos < 0) || (newPos > fileSize - 1)) {
+        Console_PutStr("sys_lseek: offset error. newPos = ");
+        Console_PutInt(newPos);
+        Console_PutStr("\n");
+        return -1;
+    }
+
+    file->fdPos = newPos;
+
+    return newPos;
+}
+
 int32_t write(int32_t fd, const void *buf, uint32_t count)
 {
     return _syscall3(SYS_WRITE, fd, buf, count);

@@ -44,5 +44,15 @@ void Dir_Close(Dir *dir);
 bool Dir_SyncDirEntry(Dir *parentDir, DirEntry *dirEntry, void *ioBuf);
 /* 打开根目录 */
 void Dir_OpenRootDir(Partition *part);
+/* 删除目录项，成功返回true，失败返回flase */
+bool Dir_DeleteDirEntry(Partition *part, Dir *dir, uint32_t inodeNo, void *ioBuf);
+/* 在内存中初始化目录/文件 */
+void Dir_CreateDirEntry(const char *fileName, uint32_t inodeNo, uint8_t fileType, DirEntry *dirEntry);
+/* 读取目录，成功返回1个目录项，失败返回NULL */
+DirEntry *Dir_Read(Dir *dir);
+/* 判断目录是否为空 */
+bool Dir_IsEmpty(Dir *dir);
+/* 在父目录parentDir中删除childDir */
+int32_t Dir_Remove(Dir *parentDir, Dir *chileDir);
 
 #endif
