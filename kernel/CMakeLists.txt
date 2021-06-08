@@ -20,8 +20,8 @@ add_custom_command(
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-set(KERNEL_SRC main.c kernel.o syscall.c console.c process.c tss.c sync.c thread.c memory.c bitmap.c ${LIB_DIR}/list.c ${LIB_DIR}/string.c ${LIB_DIR}/stdio.c panic.c interrupt.c device/ide.c device/timer.c print.o switch.o ${FS_DIR}/inode.c ${FS_DIR}/fs.c ${FS_DIR}/dir.c ${FS_DIR}/file.c)
-set(KERNEL_O main.o kernel.o syscall.o console.o process.o tss.o sync.o thread.o memory.o bitmap.o list.o string.o stdio.o panic.o interrupt.o ide.o timer.o print.o switch.o inode.o fs.o dir.o file.o)
+set(KERNEL_SRC main.c kernel.o fork.c syscall.c console.c process.c tss.c sync.c thread.c memory.c bitmap.c ${LIB_DIR}/list.c ${LIB_DIR}/string.c ${LIB_DIR}/stdio.c panic.c interrupt.c device/ide.c device/timer.c print.o switch.o ${FS_DIR}/inode.c ${FS_DIR}/fs.c ${FS_DIR}/dir.c ${FS_DIR}/file.c)
+set(KERNEL_O main.o kernel.o fork.o syscall.o console.o process.o tss.o sync.o thread.o memory.o bitmap.o list.o string.o stdio.o panic.o interrupt.o ide.o timer.o print.o switch.o inode.o fs.o dir.o file.o)
 add_custom_command(
     OUTPUT kernel.bin
     COMMAND ${CMAKE_C_COMPILER} -c ${KERNEL_SRC} -I${ROOT_DIR}/include/ -I${ROOT_DIR}/ -fno-stack-protector -fno-builtin -m32 -nostartfiles

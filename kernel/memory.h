@@ -71,5 +71,9 @@ void *Mem_Malloc(uint32_t size);
 
 void *sys_malloc(uint32_t size);
 void sys_free(void *addr);
+/* 安装1页大小的vaddr，在fork场景使用 */
+void *Mem_GetPageWithoutOpBitmap(VirMemType type, uintptr_t vaddr);
+/* 将n个虚拟地址页回收 */
+void Mem_FreeVirAddr(VirMemType type, void *virAddr, uint32_t pageCnt);
 
 #endif

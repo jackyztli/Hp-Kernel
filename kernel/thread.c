@@ -61,6 +61,12 @@ static inline pid_t Thread_AllocPid(void)
     return nextPid;
 }
 
+/* fork是返回pid */
+pid_t Thread_ForkPid(void)
+{
+    return Thread_AllocPid();
+}
+
 /* 任务栈初始化 */
 static inline void Thread_TaskInit(Task *task, const char *name, uint32_t priority, ThreadFunc threadFunc, void *threadArgs)
 {
@@ -74,6 +80,8 @@ static inline void Thread_TaskInit(Task *task, const char *name, uint32_t priori
     task->pgDir = NULL;
     /* 以根目录为默认工作路径 */
     task->cwdIndoe = 0;
+    /* -1表示没有父进程 */
+    task->parentPid = -1;
     task->stackMagic = 0x19AE1617;
     task->taskStatus = TASK_READY;
 

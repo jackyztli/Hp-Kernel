@@ -99,6 +99,8 @@ typedef struct {
     MemBlockDesc memblockDesc[DESC_CNT];
     /* 记录任务的工作目录inode编号 */
     uint32_t cwdIndoe;
+    /* 父进程pid */
+    pid_t parentPid;
     /* 任务魔数，用于判断边界 */
     uint32_t stackMagic;
 } Task;
@@ -127,5 +129,8 @@ void Thread_Yield(void);
 
 /* 任务初始化 */
 void Thread_Init(void);
+
+/* fork是返回pid */
+pid_t Thread_ForkPid(void);
 
 #endif

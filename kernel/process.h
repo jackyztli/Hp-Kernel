@@ -19,5 +19,7 @@
 void Process_Activate(Task *task);
 /* 进程创建 */
 void Process_Create(void *fileName, char *name);
+/* 创建进程页目录表 */
+uint32_t *Process_PageDir(void);
 
 #endif

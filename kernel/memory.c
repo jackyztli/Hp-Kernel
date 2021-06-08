@@ -525,6 +525,23 @@ void *Mem_Malloc(uint32_t size)
     }
 }
 
+/* 安装1页大小的vaddr，在fork场景使用 */
+void *Mem_GetPageWithoutOpBitmap(VirMemType type, uintptr_t vaddr)
+{
+    MemPool *memPool = type == VIR_MEM_KERNEL ? &kernelMemPool : &userMemPool;
+    Lock_Lock(&memPool->memLock);
+    void *pagePhyAddr = Mem_Palloc(memPool);
+    if (pagePhyAddr == NULL) {
+        Lock_UnLock(&memPool->memLock);
+        return NULL;
+    }
+
+    Mem_AddPageTable((void *)vaddr, pagePhyAddr);
+    Lock_UnLock(&memPool->memLock);
+
+    return (void *)vaddr;
+}
+
 /* 内存管理模块初始化 */
 void Mem_Init(void)
 {
