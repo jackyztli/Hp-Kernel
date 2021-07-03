@@ -1,2 +1,2 @@
 # Hp-Kernel
-A small High-performance kernel
+This is for x86_64 version
