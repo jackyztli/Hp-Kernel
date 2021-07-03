@@ -9,6 +9,7 @@
 #include "kernel/thread.h"
 #include "kernel/console.h"
 #include "kernel/panic.h"
+#include "kernel/fork.h"
 #include "fs/fs.h"
 #include "fs/file.h"
 #include "lib/string.h"
@@ -79,7 +80,7 @@ int32_t sys_lseek(int32_t fd, int32_t offset, FileSeek seekType)
         return -1;
     }
 
-    ASSERT((seekType >= SEEK_SET) && (seekType =< SEEK_END));
+    ASSERT((seekType >= SEEK_SET) && (seekType <= SEEK_END));
 
     int32_t globalFd = File_Local2Global(fd);
     File *file = &g_fileTable[globalFd];
@@ -126,6 +127,11 @@ void free(void *ptr)
     return _syscall1(SYS_FREE, ptr);
 }
 
+pid_t fork(void)
+{
+    return _syscall0(SYS_FORK);
+}
+
 /* 系统调用模块初始化 */
 void Syscall_Init(void)
 {
@@ -135,6 +141,7 @@ void Syscall_Init(void)
     syscall_table[SYS_WRITE] = sys_write;
     syscall_table[SYS_MALLOC] = sys_malloc;
     syscall_table[SYS_FREE] = sys_free;
+    syscall_table[SYS_FORK] = sys_fork;
     Console_PutStr("Syscall_Init end.\n"); 
 
     return;

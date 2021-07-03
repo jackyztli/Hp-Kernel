@@ -11,6 +11,7 @@
 #include "kernel/interrupt.h"
 #include "kernel/console.h"
 #include "fs/fs.h"
+#include "fs/file.h"
 #include "lib/string.h"
 
 typedef struct {
@@ -111,16 +112,16 @@ void Inode_Release(Partition *part, uint32_t inodeNo)
     /* 1. 回收所有inode的块 */
     uint32_t blockIndex = 0;
     uint32_t allBlocks[MAX_ALL_BLOCK] = {0};
-    whlile (blockIndex < MAX_DIRECT_BLOCK) {
-        allBlocks[blockIndex] = inodeDelete->iSecotr[blockIndex];
+    while (blockIndex < MAX_DIRECT_BLOCK) {
+        allBlocks[blockIndex] = inodeDelete->iSectors[blockIndex];
         blockIndex++;
     }
 
     /* 处理一级表 */
-    if (inodeDelete->iSecotr[MAX_DIRECT_BLOCK] != 0) {
-        Ide_Read(part->disk, inodeDelete->iSecotr[MAX_DIRECT_BLOCK], allBlocks + MAX_DIRECT_BLOCK, 1);
+    if (inodeDelete->iSectors[MAX_DIRECT_BLOCK] != 0) {
+        Ide_Read(part->disk, inodeDelete->iSectors[MAX_DIRECT_BLOCK], allBlocks + MAX_DIRECT_BLOCK, 1);
         /* 回收一级页表所占的扇区 */
-        uint32_t blockBitmapIndex = inodeDelete->iSecotr[MAX_DIRECT_BLOCK] - part->sb->dataStartLBA;
+        uint32_t blockBitmapIndex = inodeDelete->iSectors[MAX_DIRECT_BLOCK] - part->sb->dataStartLBA;
         ASSERT(blockBitmapIndex > 0);
         BitmapSet(&part->blockBitmap, blockBitmapIndex, 0);
         File_BitmapSync(part, blockBitmapIndex, BLOCK_BITMAP);

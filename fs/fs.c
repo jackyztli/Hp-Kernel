@@ -412,7 +412,7 @@ int32_t sys_unlink(const char *pathName)
 
     /* 检查待删除的文件是否存在 */
     FilePathSearchRecord searchedRecord = {0};
-    int32_t inodeNo = FS_SearchFile(pathName);
+    int32_t inodeNo = FS_SearchFile(pathName, &searchedRecord);
     ASSERT(inodeNo != 0);
     if (inodeNo == -1) {
         Console_PutStr("file ");
@@ -541,7 +541,7 @@ int32_t sys_mkdir(const char *pathName)
     Dir_CreateDirEntry(dirName, inodeNo, FT_DIRECTORY, &newDirEntry);
     memset(ioBuf, 0, SECTOR_PER_SIZE * 2);
 
-    if (Dir_SyncDirEntry(parentDir, &newDirEntry, ioBuf) {
+    if (Dir_SyncDirEntry(parentDir, &newDirEntry, ioBuf)) {
         Console_PutStr("sys_mkdir: sync direntry to disk failed\n");
         rollBackStep = 2;
         goto rollback;
@@ -578,7 +578,7 @@ rollback:
 Dir *sys_opendir(const char *name)
 {
     ASSERT(strlen(name) < MAX_FILE_OPEN);
-    if ((name[0] == '/') && ((name[1] == 0) || (name[0] == '.')) {
+    if ((name[0] == '/') && ((name[1] == 0) || (name[0] == '.'))) {
         return &g_rootDir;
     }
 
@@ -687,9 +687,9 @@ static int32_t FS_GetChildDirName(uint32_t parentInode, uint32_t childInode, cha
     uint8_t blockIndex = 0;
     uint32_t allBlocks[MAX_ALL_BLOCK] = {0};
     uint32_t blockCnt = MAX_DIRECT_BLOCK;
-    whle (blockIndex < MAX_DIRECT_BLOCK) {
+    while (blockIndex < MAX_DIRECT_BLOCK) {
         allBlocks[blockIndex] = parentDirInode->iSectors[blockIndex];
-        blockIndex++:
+        blockIndex++;
     }
 
     if (parentDirInode->iSectors[MAX_DIRECT_BLOCK]) {
@@ -711,7 +711,7 @@ static int32_t FS_GetChildDirName(uint32_t parentInode, uint32_t childInode, cha
             while (dirEntrySize < dirEntryPerSize) {
                 if ((dirEntry + dirEntryIndex)->iNo == childInode) {
                     strcat(path, "/");
-                    strcat(path, (DirEntry + dirEntryIndex)->fileName);
+                    strcat(path, (dirEntry + dirEntryIndex)->fileName);
                     return 0;
                 }
                 dirEntryIndex++;

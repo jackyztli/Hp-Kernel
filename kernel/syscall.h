@@ -38,16 +38,18 @@ typedef enum {
     SYS_WRITE,
     SYS_MALLOC,
     SYS_FREE,
+    SYS_FORK,
 
     SYS_BUTT
 } SYSCALL_NR;
 
 /* 用户态系统调用API */
 pid_t getpid(void);
-int32_t read(int32_t fd, void *buf, uint32_t count)
+int32_t read(int32_t fd, void *buf, uint32_t count);
 int32_t write(int32_t fd, const void *buf, uint32_t count);
 void *malloc(uint32_t size);
 void free(void *ptr);
+pid_t fork(void);
 
 pid_t sys_getpid(void);
 

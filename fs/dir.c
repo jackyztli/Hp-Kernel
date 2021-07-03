@@ -316,8 +316,8 @@ bool Dir_DeleteDirEntry(Partition *part, Dir *dir, uint32_t inodeNo, void *ioBuf
 
         } else {
             /* 不需要清空块 */
-            memset(dirEntry, 0, sizeof(DirEntry));
-            Ide_Write(part->disk, allBlocks[blockIndex], 1);
+            memset(foundDirEntry, 0, sizeof(foundDirEntry));
+            Ide_Write(part->disk, allBlocks[blockIndex], ioBuf, 1);
         }
 
         /* 更新目录信息 */
@@ -334,7 +334,7 @@ bool Dir_DeleteDirEntry(Partition *part, Dir *dir, uint32_t inodeNo, void *ioBuf
 /* 读取目录，成功返回1个目录项，失败返回NULL */
 DirEntry *Dir_Read(Dir *dir)
 {
-    DirEntry *dirEntry = (DirEntry *)Dir->dirBuf;
+    DirEntry *dirEntry = (DirEntry *)dir->dirBuf;
     Inode *dirInode = dir->inode;
     uint32_t allBlocks[MAX_ALL_BLOCK] = {0};
     uint32_t blockCnt = MAX_DIRECT_BLOCK;

@@ -345,7 +345,7 @@ int32_t File_Read(File *file, void *buf, uint32_t count)
             ASSERT(file->fdInode->iSectors[MAX_DIRECT_BLOCK] != 0);
             indirectBlockTable = file->fdInode->iSectors[MAX_DIRECT_BLOCK];
             Ide_Read(g_curPartition->disk, indirectBlockTable, allBlocks + MAX_DIRECT_BLOCK, 1);
-        } else 3
+        } else {
             /* 情况2：在间接块读取 */
             ASSERT(file->fdInode->iSectors[MAX_DIRECT_BLOCK] != 0);
             indirectBlockTable = file->fdInode->iSectors[MAX_DIRECT_BLOCK];
@@ -363,7 +363,7 @@ int32_t File_Read(File *file, void *buf, uint32_t count)
         uint32_t secLeftBytes = BLOCK_PER_SIZE - secOffBytes;
 
         /* 待读入的数据大小 */
-        chunkSize = leftReadSize < secLeftBytes ? leftReadSize : secLeftBytes;
+        uint32_t chunkSize = leftReadSize < secLeftBytes ? leftReadSize : secLeftBytes;
 
         memset(ioBuf, 0, BLOCK_PER_SIZE);
         Ide_Read(g_curPartition->disk, secLBA, ioBuf, 1);

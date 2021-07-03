@@ -72,11 +72,18 @@ int main()
 	Console_PutStr("fd: ");
 	Console_PutInt(fd);
 	Console_PutStr(" closed now\n");
+
+	init();
+
+    return 0;
+}
+
+void init(void)
+{
+	pid_t pid = fork();
 	while (1) {
 		// Console_PutStr("Main ");
 	}
-
-    return 0;
 }
 
 void ThreadA_Test(void *args)

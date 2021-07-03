@@ -25,6 +25,8 @@ List threadAllList;
 /* 主线程PCB */
 Task *mainThreadTask;
 
+void init(void);
+
 /* 切换到下一个任务 */
 void Thread_SwitchTo(Task *currTask, Task *nextTask);
 
@@ -245,6 +247,9 @@ void Thread_Init(void)
     
     /* 初始化pid锁 */
     Lock_Init(&g_pidLock);
+
+    /* 先创建第一个用户进程：init */
+    Process_Create(init, "init");
 
     /* 创建主线程PCB */
     Thread_MakeMainThread();

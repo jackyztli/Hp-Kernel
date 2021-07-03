@@ -10,6 +10,12 @@
 #include "kernel/memory.h"
 #include "lib/list.h"
 
+/* 就绪队列 */
+extern List threadReadyList;
+
+/* 所有任务队列 */
+extern List threadAllList;
+
 #define MAX_FILES_OPEN_PER_PROC 8
 
 /* 进程或线程状态枚举 */

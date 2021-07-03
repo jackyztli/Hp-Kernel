@@ -13,6 +13,8 @@
 #include "lib/string.h"
 #include "fs/file.h"
 
+extern void intr_exit(void);
+
 /* 将父进程的pcb拷贝到子进程中 */
 static int32_t Fork_CopyPCBToChild(const Task *parent, Task *child)
 {
