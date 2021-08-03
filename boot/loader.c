@@ -8,6 +8,7 @@
 
 #define SECTOR_SIZE 512
 #define KERNEL_START_SECTOR 2
+#define KERNEL_START_ADDR 0x10000
 
 /* 等待硬盘可读 */
 static void waitdisk(void)
@@ -42,7 +43,7 @@ void read_sector(void *dst, uint32_t secno)
 void loader_main(void)
 {
     /* kernel程序放置到64KB的起始地址处 */
-    elfhdr *elf = (elfhdr *)0x10000;
+    elfhdr *elf = (elfhdr *)KERNEL_START_ADDR;
 
     /* 读取kernel程序 */
     read_sector(elf, KERNEL_START_SECTOR);
@@ -64,7 +65,7 @@ void loader_main(void)
         }
     }
 
-    /* 调用入口函数 */
+    /* 调用head程序入口函数 */
     ((void (*)(void))((uintptr_t)elf->entry))();
 
     while (1) {

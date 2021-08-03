@@ -18,7 +18,7 @@ start:
 	# 加载gdt
 	lgdt gdtdesc
 	
-	# 开启分页基址 
+	# 进入保护模式 
 	mov %cr0, %eax
 	or  $0x1, %eax
 	mov %eax, %cr0
