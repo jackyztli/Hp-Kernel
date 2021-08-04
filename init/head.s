@@ -6,7 +6,7 @@
 setup:
     # 加载64位全局描述符
     lgdt gdt64desc
-    movw $10, %ax
+    movw $0x10, %ax
     movw %ax, %ds
     movw %ax, %es
     movw %ax, %fs
