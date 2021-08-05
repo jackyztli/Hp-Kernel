@@ -29,6 +29,7 @@ start:
 # 保护模式代码
 .code32
 p_mode_start:
+	cli
 	# 重新设置段选择子，cs寄存器在执行ljmp指令设置成0x8
 	movw $0x10, %ax
 	movw %ax, %ds
