@@ -10,6 +10,14 @@ start:
 	movw %ax, %es
 	movw %ax, %ss
 	
+	# 设置VBE的工作模式为0x180，显存物理地址为0xe0000000，方便后续字符打印
+	mov $0x4f02, %ax
+    mov $0x4180, %bx
+    int $0x10
+	# 不支持设置VBE模式，则挂起
+	cmp $0x004f, %ax
+	jnz hang_up
+
 	# 开启A20地址线
 	in $0x92, %al
 	or $0x2,  %al

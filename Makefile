@@ -22,9 +22,9 @@ all: Image
 
 Image: boot kernel
 	mkdir -p output
-	$(DD) if=/dev/zero of=output/Image bs=512 count=30
+	$(DD) if=/dev/zero of=output/Image bs=512 count=52
 	$(DD) if=output/boot of=output/Image bs=512 count=1 conv=notrunc
-	$(DD) if=output/kernel of=output/Image bs=512 count=20 seek=2 conv=notrunc
+	$(DD) if=output/kernel of=output/Image bs=512 count=50 seek=2 conv=notrunc
 
 # boot部分
 boot: boot/boot.o boot/loader.o boot/tmp.out
