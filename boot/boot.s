@@ -50,6 +50,9 @@ p_mode_start:
 	movl $start, %esp
 	call loader_main
 	
+	# 跳转到setup程序
+	ljmp $0x8, $0x80000
+
 	# 从loader_main返回就挂起
 hang_up:
 		jmp hang_up

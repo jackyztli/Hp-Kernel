@@ -7,7 +7,9 @@
 #include <elf.h>
 
 #define SECTOR_SIZE 512
-#define KERNEL_START_SECTOR 2
+#define SETUP_START_SECTOR 2
+#define SETUP_START_ADDR 0x80000
+#define KERNEL_START_SECTOR 6
 #define KERNEL_START_ADDR 0x10000
 
 /* 等待硬盘可读 */
@@ -42,6 +44,9 @@ void read_sector(void *dst, uint32_t secno)
 
 void loader_main(void)
 {
+    /* 读取setup程序 */
+    read_sector((void *)SETUP_START_ADDR, SETUP_START_SECTOR);
+
     /* kernel程序放置到64KB的起始地址处 */
     elfhdr *elf = (elfhdr *)KERNEL_START_ADDR;
 
@@ -63,12 +68,5 @@ void loader_main(void)
         for (; start < end; start += SECTOR_SIZE, secno++) {
             read_sector((void *)start, secno);
         }
-    }
-
-    /* 调用head程序入口函数 */
-    ((void (*)(void))((uintptr_t)elf->entry))();
-
-    while (1) {
-
     }
 }

@@ -2,8 +2,8 @@ SHELL=/bin/bash
 CFLAGS_32 = -march=i386 -fno-builtin -fno-PIC -Wall -ggdb -m32 -gstabs -nostdinc -fno-stack-protector -Os -nostdinc
 LDFLAGS_32 = -m elf_i386 -nostdlib -N
 
-CFLAGS_64 = -fno-builtin -fno-PIC -Wall -ggdb -gstabs -nostdinc -fno-stack-protector -Os -nostdinc
-LDFLAGS_64 = -nostdlib -N
+CFLAGS_64 = -fno-builtin -mcmodel=large -Wall -ggdb -nostdinc -fno-stack-protector -m64
+LDFLAGS_64 = -b elf64-x86-64 -z muldefs -nostdlib -N
 
 CC = gcc
 LD = ld
@@ -20,11 +20,12 @@ DD = dd
 
 all: Image
 
-Image: boot kernel
+Image: boot setup kernel
 	mkdir -p output
-	$(DD) if=/dev/zero of=output/Image bs=512 count=52
+	$(DD) if=/dev/zero of=output/Image bs=512 count=102
 	$(DD) if=output/boot of=output/Image bs=512 count=1 conv=notrunc
-	$(DD) if=output/kernel of=output/Image bs=512 count=50 seek=2 conv=notrunc
+	$(DD) if=output/setup of=output/Image bs=512 count=4 seek=2 conv=notrunc
+	$(DD) if=output/kernel of=output/Image bs=512 count=90 seek=6 conv=notrunc
 
 # boot部分
 boot: boot/boot.o boot/loader.o boot/tmp.out
@@ -44,10 +45,16 @@ boot/loader.o: boot/loader.c
 boot/tmp.out:
 	(echo -e -n "\x55\xaa") >boot/tmp.out
 
-# 内核部分
-kernel: init/head.o init/main.o
+setup: boot/setup.s
+	$(CC) $(CFLAGS_32) -c boot/setup.s -o boot/setup.o
+	$(LD) $(LDFLAGS_32) -e setup -Ttext 0x80000 boot/setup.o -o boot/setup
 	mkdir -p output
-	$(LD) $(LDFLAGS_64) -e setup -Ttext 0x100000 init/head.o init/main.o -o output/kernel
+	$(OBJCOPY) -S -O binary boot/setup output/setup
+
+# 内核部分
+kernel: init/head.o init/main.o kernel/drivers/console/font_8x16.o
+	mkdir -p output
+	$(LD) $(LDFLAGS_64) -e setup64 -Ttext 0xffff800000100000 init/head.o init/main.o kernel/drivers/console/font_8x16.o -o output/kernel
 
 clean:
 	rm -rf boot/*.o boot/*.out boot/boot
