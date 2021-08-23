@@ -10,13 +10,17 @@ LD = ld
 OBJCOPY = objcopy
 DD = dd
 
+KERNEL_INCLUDE = -I./include \
+				 -I./kernel/ \
+				 -I./kernel/drivers/console
+
 .c.s:
 	$(CC) $(CFLAGS_64) \
-	-nostdinc -Iinclude -S -o $*.s $<
+	-Iinclude -S -o $*.s $<
 
 .c.o:
 	$(CC) $(CFLAGS_64) \
-	-nostdinc -Iinclude -c -o $*.o $<
+	$(KERNEL_INCLUDE) -c -o $*.o $<
 
 all: Image
 
@@ -51,12 +55,15 @@ setup: boot/setup.s
 	mkdir -p output
 	$(OBJCOPY) -S -O binary boot/setup output/setup
 
+KERNEL_OBJ = init/head.o init/main.o kernel/printk.o kernel/drivers/console/console.o kernel/drivers/console/font_8x16.o
 # 内核部分
-kernel: init/head.o init/main.o kernel/drivers/console/font_8x16.o
+kernel: $(KERNEL_OBJ)
 	mkdir -p output
-	$(LD) $(LDFLAGS_64) -e setup64 -Ttext 0xffff800000100000 init/head.o init/main.o kernel/drivers/console/font_8x16.o -o output/kernel
+	$(LD) $(LDFLAGS_64) -e setup64 -Ttext 0xffff800000100000 $(KERNEL_OBJ) -o output/kernel
 
 clean:
 	rm -rf boot/*.o boot/*.out boot/boot
 	rm -rf init/*.o
+	rm -rf kernel/*.o
+	rm -rf kernel/drivers/console/*.o
 	rm -rf output

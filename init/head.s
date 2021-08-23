@@ -65,14 +65,21 @@ __PDPTE:
 .org 0x3000
 __PDT:
     # 前10M映射
-    .quad       0x000083
-        .quad   0x200083
-        .quad   0x400083
-        .quad   0x600083
-        .quad   0x800083
+    .quad   0x000083
+    .quad   0x200083
+    .quad   0x400083
+    .quad   0x600083
+    .quad   0x800083
     # 显存物理地址，映射到0xa00000的线性地址处
-    .quad   0xe0000083
-        .fill   506, 8, 0
+    .quad	0xe0000083
+    .quad	0xe0200083
+    .quad	0xe0400083
+    .quad	0xe0600083
+    .quad	0xe0800083
+    .quad	0xe0a00083
+    .quad	0xe0c00083
+    .quad	0xe0e00083
+    .fill	499,8,0
 
 .p2align 2
 # idt64定义

@@ -1,6 +1,9 @@
+#include <font_8x16.h>
+#include <stdint.h>
+
 #define FONTDATAMAX 4096
 
-static const unsigned char fontdata_8x16[FONTDATAMAX] = {
+static const uint8_t fontdata_8x16[FONTDATAMAX] = {
 
 	/* 0 0x00 '^@' */
 	0x00, /* 00000000 */
@@ -4612,7 +4615,11 @@ static const unsigned char fontdata_8x16[FONTDATAMAX] = {
 
 };
 
-unsigned char get_fontdata(int index)
+uint8_t get_fontdata(uint32_t index)
 {
+	if (index >= FONTDATAMAX) {
+		return 0;
+	}
+
     return fontdata_8x16[index];
 }
