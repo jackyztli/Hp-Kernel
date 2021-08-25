@@ -53,7 +53,7 @@ int32_t vsprintf(char *buf, const char *fmt, va_list args)
 
                 numTmp = num;
                 while (exp) {
-                    *str = numTmp / exp;
+                    *str = numTmp / exp + '0';
                     str++;
                     numTmp %= exp;
                     exp /= 10;

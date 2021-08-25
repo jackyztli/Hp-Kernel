@@ -16,7 +16,7 @@ KERNEL_INCLUDE = -I./include \
 
 .c.s:
 	$(CC) $(CFLAGS_64) \
-	-Iinclude -S -o $*.s $<
+	$(KERNEL_INCLUDE) -S -o $*.s $<
 
 .c.o:
 	$(CC) $(CFLAGS_64) \
@@ -55,7 +55,7 @@ setup: boot/setup.s
 	mkdir -p output
 	$(OBJCOPY) -S -O binary boot/setup output/setup
 
-KERNEL_OBJ = init/head.o init/main.o kernel/printk.o kernel/drivers/console/console.o kernel/drivers/console/font_8x16.o
+KERNEL_OBJ = init/head.o init/main.o kernel/printk.o kernel/drivers/console/console.o kernel/drivers/console/font_8x16.o kernel/trap.o kernel/trap_entry.o
 # 内核部分
 kernel: $(KERNEL_OBJ)
 	mkdir -p output

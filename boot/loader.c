@@ -63,8 +63,8 @@ void loader_main(void)
     elfphdr *endphdr = (elfphdr *)(phdr + elf->phnum);
     for (; phdr < endphdr; phdr++) {
         uint32_t secno = (phdr->offset / SECTOR_SIZE) + KERNEL_START_SECTOR;
-        uintptr_t start = (phdr->vaddr & 0xffffff) - (phdr->offset % SECTOR_SIZE);
-        uintptr_t end = (phdr->vaddr & 0xffffff) + phdr->memsz;
+        uint32_t start = (phdr->vaddr & 0xffffff) - (phdr->offset % SECTOR_SIZE);
+        uint32_t end = (phdr->vaddr & 0xffffff) + phdr->memsz;
         for (; start < end; start += SECTOR_SIZE, secno++) {
             read_sector((void *)start, secno);
         }

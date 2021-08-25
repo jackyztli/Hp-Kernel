@@ -83,6 +83,7 @@ __PDT:
 
 .p2align 2
 # idt64定义
+.globl idt64
 idt64:
     .fill 512, 8, 0
 
@@ -98,6 +99,7 @@ gdt64:
     .fill 10, 8, 0
 gdt64_end:
 
+.globl idt64desc
 idt64desc:
     .word 4096 - 1
     .quad idt64
