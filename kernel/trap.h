@@ -19,7 +19,7 @@ extern struct gate_desc idt64[MAX_IDT_NUM];
 /* 开启中断 */
 static inline void sti()
 {
-    __asm__ __volatile__ ("sti	\n\t":::"memory");
+    __asm__ __volatile__ ("sti;hlt":::"memory");
 }
 
 void trap_init(void);

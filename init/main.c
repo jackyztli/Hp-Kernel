@@ -11,9 +11,6 @@ void kernel_init(void)
 
     /* 开中断 */
     sti();
-
-    /* 测试中断 */
-    uint32_t i = 10 / 0;
     
     while (1) {
 
