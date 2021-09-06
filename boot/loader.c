@@ -23,9 +23,6 @@ static void waitdisk(void)
 /* 读取一个扇区到内存 */
 void read_sector(void *dst, uint32_t secno)
 {
-    /* 等待硬盘可读 */
-    waitdisk();
-
     /* 写入硬盘参数 */
     outb(0x1f2, 1);                 /* 读取一个扇区 */
     /* 写入硬盘读取扇区LBA */
@@ -52,11 +49,6 @@ void loader_main(void)
 
     /* 读取kernel程序 */
     read_sector(elf, KERNEL_START_SECTOR);
-
-    /* 校验魔数字 */
-    if (*(uint32_t *)elf->ident != ELF_MAGIC) {
-        return;
-    }
 
     /* 拷贝段 */
     elfphdr *phdr = (elfphdr *)((void *)elf + elf->phoff);

@@ -18,6 +18,22 @@ start:
 	cmp $0x004f, %ax
 	jnz hang_up
 
+	# 获取物理内存结构体，BIOS系统调用号为0x15, edx = 0x534d4150('SMAP') 获取内存布局
+	mov $0, %ebx
+	mov $0x534d4150, %edx
+	# 物理内存结构体从0x7e00处开始存放
+	mov $0x7e00, %di
+e820_get_mem_loop:
+	mov $0xe820, %eax
+	int $0x15
+	# 获取失败
+	jc hang_up
+	# 一个结构体占20字节
+	add $20, %di
+	cmp $0, %ebx
+	# 如果ebx非0，即表示已经获取完毕
+	jne e820_get_mem_loop
+
 	# 开启A20地址线
 	in $0x92, %al
 	or $0x2,  %al

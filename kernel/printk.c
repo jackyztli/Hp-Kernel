@@ -6,6 +6,34 @@
 #include <stdint.h>
 #include <console.h>
 
+static char *itoa(char *str, int64_t num)
+{
+    /* 负数 */
+    if (num < 0) {
+        *str = '-';
+        str++;
+        num = -num;
+    }
+
+    int64_t exp = 1;
+    int64_t numTmp = num / 10;
+    while (numTmp) {
+        exp *= 10;
+        numTmp /= 10;
+    }
+
+    numTmp = num;
+    while (exp) {
+        *str = numTmp / exp + '0';
+        str++;
+        numTmp %= exp;
+        exp /= 10;
+    }
+
+    /* 返回转换后的字符串指针 */
+    return str;
+}
+
 int32_t vsprintf(char *buf, const char *fmt, va_list args)
 {
     char *str = buf;
@@ -34,31 +62,19 @@ int32_t vsprintf(char *buf, const char *fmt, va_list args)
 
                 break;
             }
-            
+
             case 'd': {
                 int32_t num = va_arg(args, int32_t);
-                /* 负数 */
-                if (num < 0) {
-                    *str = '-';
-                    str++;
-                    num = -num;
-                }
+                str = itoa(str, num);
+                break;
+            }
 
-                int32_t exp = 1;
-                int32_t numTmp = num / 10;
-                while (numTmp) {
-                    exp *= 10;
-                    numTmp /= 10;
+            case 'l': {
+                fmtTmp++;
+                if (*fmtTmp == 'd') {
+                    int64_t num = va_arg(args, int64_t);
+                    str = itoa(str, num);
                 }
-
-                numTmp = num;
-                while (exp) {
-                    *str = numTmp / exp + '0';
-                    str++;
-                    numTmp %= exp;
-                    exp /= 10;
-                }
-
                 break;
             }
         }

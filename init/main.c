@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <printk.h>
 #include <trap.h>
+#include <memory.h>
 
 void kernel_init(void)
 {
@@ -8,6 +9,9 @@ void kernel_init(void)
 
     /* 初始化系统异常处理 */
     trap_init();
+    
+    /* 内存初始化 */
+    mem_init();
 
     /* 开中断 */
     sti();

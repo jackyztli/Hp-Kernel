@@ -25,8 +25,16 @@ void idt_desc_init(void)
     }
 }
 
+void trap_vector_init(void)
+{
+    
+}
+
 void trap_init(void)
 {
     /* 初始化idt段描述符 */
     idt_desc_init();
+
+    /* 初始化异常向量 */
+    trap_vector_init();
 }

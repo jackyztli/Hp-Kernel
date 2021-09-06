@@ -12,6 +12,8 @@ DD = dd
 
 KERNEL_INCLUDE = -I./include \
 				 -I./kernel/ \
+				 -I./mm/     \
+				 -I./lib/	 \
 				 -I./kernel/drivers/console
 
 .c.s:
@@ -55,7 +57,8 @@ setup: boot/setup.s
 	mkdir -p output
 	$(OBJCOPY) -S -O binary boot/setup output/setup
 
-KERNEL_OBJ = init/head.o init/main.o kernel/printk.o kernel/drivers/console/console.o kernel/drivers/console/font_8x16.o kernel/trap.o kernel/trap_entry.o
+KERNEL_OBJ = init/head.o init/main.o kernel/printk.o kernel/drivers/console/console.o kernel/drivers/console/font_8x16.o kernel/trap.o \
+			 kernel/trap_entry.o mm/memory.o lib/string.o
 # 内核部分
 kernel: $(KERNEL_OBJ)
 	mkdir -p output
