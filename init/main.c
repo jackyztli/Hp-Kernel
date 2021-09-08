@@ -11,11 +11,11 @@ void kernel_init(void)
     trap_init();
     
     /* 内存初始化 */
-    mem_init();
+    init_mem();
 
     /* 开中断 */
     sti();
-    
+
     while (1) {
 
     }

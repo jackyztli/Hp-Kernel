@@ -1,0 +1,25 @@
+#include <interrupt.h>
+#include <printk.h>
+#include <io.h>
+#include <trap.h>
+
+void init_interrupt(void)
+{
+    printk("8259A init...\n");
+
+    outb(0x20, 0x11);
+    outb(0x21, 0x20);
+    outb(0x21, 0x04);
+    outb(0x21, 0x01);
+
+    outb(0xa0, 0x11);
+    outb(0xa1, 0x28);
+    outb(0xa1, 0x02);
+    outb(0xa1, 0x01);
+
+    outb(0x21, 0xfd);
+    outb(0xa1, 0xff);
+    
+    /* 开启中断 */
+    sti();
+}

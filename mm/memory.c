@@ -24,19 +24,72 @@ struct zone *mem_zone_list = NULL;
 /* 内核结束地址，链接的时候编译器自动生成 */
 extern char _end;
 
-static void mem_zone_set_bits_map(struct zone *p_zone, uint64_t bit_index)
+static void mem_zone_set_bits_map(struct zone *p_zone, uint64_t bit_index, uint8_t flag)
 {
     uint8_t bits = p_zone->bits_map[bit_index / 8];
     uint8_t bit = bits & (1 << (bit_index % 8));
     /* 如果bit已经是1，则发生了异常 */
-    p_zone->bits_map[bit_index / 8] = bits | (1 << (bit_index % 8));
+    p_zone->bits_map[bit_index / 8] = bits | (flag << (bit_index % 8));
 
     return;
 }
 
-void mem_init(void)
+/* 从内存区中获取空闲页表的位图下标，没有空闲页表则返回-1 */
+static uint64_t get_free_page_bit_index(const struct zone *p_zone)
 {
-    printk("start to init mem...");
+    for (uint64_t i = 0; i < p_zone->bits_len; i++) {
+        /* 位图是1，表示页表已经被占用，如果位图是0xff，则表示已经没有空闲页表 */
+        if (p_zone->bits_map[i] != 0xff) {
+            /* 一个位图占8bit */
+            for (uint8_t j = 0; j < 8; j++) {
+                if ((p_zone->bits_map[i] & (1 << j)) == 0) {
+                    return i * 8 + j;
+                }
+            }
+        }
+    }
+
+    return (uint64_t)-1;
+} 
+
+/* 申请一片物理页表，大小为2M */
+uintptr_t alloc_page(void)
+{
+    struct zone *p_zone = mem_zone_list;
+    while (p_zone) {
+        /* 查找zone中一块空闲的页表 */
+        uint64_t bit_index = get_free_page_bit_index(p_zone);
+        if (bit_index != (uint64_t)-1) {
+            /* 将空闲页表设置为已用 */
+            mem_zone_set_bits_map(p_zone, bit_index, 1);
+            /* 清空页表并返回对应物理地址 */
+            uintptr_t addr = PAGE_2M_ALIGN_UP(p_zone->start + bit_index * PAGE_2M_SIZE);
+            memset(addr, 0, PAGE_2M_SIZE);
+            return addr;
+        }
+        p_zone = p_zone->next_zone;
+    }
+
+    /* 申请失败，返回-1 */
+    return NULL;
+}
+
+/* 释放一片物理页表，大小为2M */
+void free_page(uintptr_t addr)
+{
+    struct zone *p_zone = mem_zone_list;
+    while (p_zone) {
+        if ((p_zone->start <= addr) && (p_zone->end >= addr)) {
+            mem_zone_set_bits_map(p_zone, PAGE_2M_ALIGN_DOWN(addr - p_zone->start) / PAGE_2M_SIZE, 0);
+        }
+    }
+
+    return;
+}
+
+void init_mem(void)
+{
+    printk("start to init mem...\n");
     /* 在BIOS中将内存信息存放在0x7e00开始处 */
     struct e820_meminfo *p = (struct e820_meminfo *)0xffff800000007e00;
     uint64_t total_mem = 0;
@@ -93,13 +146,13 @@ void mem_init(void)
     while (p_zone) {
         if ((p_zone->start > zone_start_addr) && (p_zone->end >= zone_start_addr)) {
             for (uint32_t i = 0; i <= (zone_start_addr - p_zone->start - 1) / PAGE_2M_SIZE; i++) {
-                mem_zone_set_bits_map(p_zone, i);
+                mem_zone_set_bits_map(p_zone, i, 1);
             }
         }
         p_zone = p_zone->next_zone;
     }
 
-    printk("finish to init mem...");
+    printk("finish to init mem...\n");
     
     return;
 }
