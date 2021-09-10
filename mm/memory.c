@@ -1,6 +1,7 @@
 #include <memory.h>
 #include <stdint.h>
 #include <printk.h>
+#include <string.h>
 
 /* BIOS中通过e820中断号读取的内存信息结构体 */
 struct e820_meminfo {
@@ -27,7 +28,7 @@ extern char _end;
 static void mem_zone_set_bits_map(struct zone *p_zone, uint64_t bit_index, uint8_t flag)
 {
     uint8_t bits = p_zone->bits_map[bit_index / 8];
-    uint8_t bit = bits & (1 << (bit_index % 8));
+    //uint8_t bit = bits & (1 << (bit_index % 8));
     /* 如果bit已经是1，则发生了异常 */
     p_zone->bits_map[bit_index / 8] = bits | (flag << (bit_index % 8));
 
@@ -64,7 +65,7 @@ uintptr_t alloc_page(void)
             mem_zone_set_bits_map(p_zone, bit_index, 1);
             /* 清空页表并返回对应物理地址 */
             uintptr_t addr = PAGE_2M_ALIGN_UP(p_zone->start + bit_index * PAGE_2M_SIZE);
-            memset(addr, 0, PAGE_2M_SIZE);
+            memset((void *)addr, 0, PAGE_2M_SIZE);
             return addr;
         }
         p_zone = p_zone->next_zone;
@@ -92,7 +93,7 @@ void init_mem(void)
     printk("start to init mem...\n");
     /* 在BIOS中将内存信息存放在0x7e00开始处 */
     struct e820_meminfo *p = (struct e820_meminfo *)0xffff800000007e00;
-    uint64_t total_mem = 0;
+    //uint64_t total_mem = 0;
     uintptr_t zone_start_addr = (uintptr_t)&_end;
     for (uint8_t i = 0; i < 32; i++) {
         printk("Address:%ld  Length:%ld  Type:%d\n", p->address, p->len, p->type);
@@ -137,7 +138,7 @@ void init_mem(void)
         }
 
         /* 下一个zone的起始地址 */
-        zone_start_addr = (uint8_t *)zone_start_addr + sizeof(struct zone) + p_zone->bits_len;
+        zone_start_addr = zone_start_addr + sizeof(struct zone) + p_zone->bits_len;
         p++;
     }
 

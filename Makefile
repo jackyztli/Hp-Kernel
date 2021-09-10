@@ -14,7 +14,8 @@ KERNEL_INCLUDE = -I./include \
 				 -I./kernel/ \
 				 -I./mm/     \
 				 -I./lib/	 \
-				 -I./kernel/drivers/console
+				 -I./kernel/drivers/console/ \
+				 -I./kernel/drivers/8259A/
 
 .c.s:
 	$(CC) $(CFLAGS_64) \
@@ -58,7 +59,7 @@ setup: boot/setup.s
 	$(OBJCOPY) -S -O binary boot/setup output/setup
 
 KERNEL_OBJ = init/head.o init/main.o kernel/printk.o kernel/drivers/console/console.o kernel/drivers/console/font_8x16.o kernel/trap.o \
-			 kernel/trap_entry.o mm/memory.o lib/string.o
+			 kernel/trap_entry.o mm/memory.o lib/string.o kernel/drivers/8259A/interrupt.o 
 # 内核部分
 kernel: $(KERNEL_OBJ)
 	mkdir -p output
@@ -69,4 +70,6 @@ clean:
 	rm -rf init/*.o
 	rm -rf kernel/*.o
 	rm -rf kernel/drivers/console/*.o
+	rm -rf kernel/drivers/8259A/*.o
+	rm -rf lib/*.o
 	rm -rf output

@@ -3,38 +3,241 @@
 
 #include <trap.h>
 #include <stdint.h>
+#include <system.h>
+#include <printk.h>
 
-extern void handle_trap_entry(void);
+void divide_error();
+void debug();
+void nmi();
+void int3();
+void overflow();
+void bounds();
+void invalid_op();
+void device_not_available();
+void double_fault();
+void coprocessor_segment_overrun();
+void invalid_TSS();
+void segment_not_present();
+void stack_segment_fault();
+void general_protection();
+void page_fault();
+void reserved();
+void coprocessor_error();
+void alignment_check();
+void machine_check();
+void SIMD_exception();
+void virtualization_exception();
 
-void idt_desc_init(void)
+void do_divide_error(uintptr_t rsp, uint64_t error_code)
 {
-    /* 在64位系统上，段描述符占8个字节 */
-    uintptr_t trap_func = (uintptr_t)handle_trap_entry;
-    uint16_t func_offset_low_word = trap_func & (uintptr_t)0xffff;
-    uint16_t selector = 0x8;
-    uint16_t attribute = 0x8E00;
-    uint16_t func_offset_mid_word = (trap_func >> 16) & (uintptr_t)0xffff;
-    uint32_t func_offset_high_quad = (trap_func >> 32) & (uintptr_t)0xffffffff;
+	uint64_t *p = (uint64_t *)(rsp + 0x98);
+	printk("do_divide_error(0), ERROR_CODE: %ld, RSP: %ld, RIP: %ld\n", error_code, rsp, *p);
+	while(1) {
 
-    for (uint32_t i = 0; i < MAX_IDT_NUM; i++) {
-        idt64[i].func_offset_low_word = func_offset_low_word;
-        idt64[i].selector = selector;
-        idt64[i].attribute = attribute;
-        idt64[i].func_offset_mid_word = func_offset_mid_word;
-        idt64[i].func_offset_high_quad = func_offset_high_quad;
     }
 }
 
-void trap_vector_init(void)
+void do_debug(uintptr_t rsp, uint64_t error_code)
 {
-    
+	uint64_t *p = (uint64_t *)(rsp + 0x98);
+	printk("do_debug(1), ERROR_CODE: %ld, RSP: %ld, RIP: %ld\n", error_code, rsp, *p);
+	while(1) {
+        
+    }
+}
+
+void do_nmi(uintptr_t rsp, uint64_t error_code)
+{
+	uint64_t *p = (uint64_t *)(rsp + 0x98);
+	printk("do_nmi(2), ERROR_CODE: %ld, RSP: %ld, RIP: %ld\n", error_code, rsp, *p);
+	while(1) {
+        
+    }
+}
+
+void do_int3(uintptr_t rsp, uint64_t error_code)
+{
+	uint64_t *p = (uint64_t *)(rsp + 0x98);
+	printk("do_int3(3), ERROR_CODE: %ld, RSP: %ld, RIP: %ld\n", error_code, rsp, *p);
+	while(1) {
+        
+    }
+}
+
+void do_overflow(uintptr_t rsp, uint64_t error_code)
+{
+	uint64_t *p = (uint64_t *)(rsp + 0x98);
+	printk("do_overflow(4), ERROR_CODE: %ld, RSP: %ld, RIP: %ld\n", error_code, rsp, *p);
+	while(1) {
+        
+    }
+}
+
+void do_bounds(uintptr_t rsp, uint64_t error_code)
+{
+	uint64_t *p = (uint64_t *)(rsp + 0x98);
+	printk("do_bounds(5), ERROR_CODE: %ld, RSP: %ld, RIP: %ld\n", error_code, rsp, *p);
+	while(1) {
+        
+    }
+}
+
+void do_invalid_op(uintptr_t rsp, uint64_t error_code)
+{
+	uint64_t *p = (uint64_t *)(rsp + 0x98);
+	printk("do_invalid_op(6), ERROR_CODE: %ld, RSP: %ld, RIP: %ld\n", error_code, rsp, *p);
+	while(1) {
+        
+    }
+}
+
+void do_device_not_available(uintptr_t rsp, uint64_t error_code)
+{
+	uint64_t *p = (uint64_t *)(rsp + 0x98);
+	printk("do_device_not_available(7), ERROR_CODE: %ld, RSP: %ld, RIP: %ld\n", error_code, rsp, *p);
+	while(1) {
+        
+    }
+}
+
+void do_double_fault(uintptr_t rsp, uint64_t error_code)
+{
+	uint64_t *p = (uint64_t *)(rsp + 0x98);
+	printk("do_double_fault(8), ERROR_CODE: %ld, RSP: %ld, RIP: %ld\n", error_code, rsp, *p);
+	while(1) {
+        
+    }
+}
+
+void do_coprocessor_segment_overrun(uintptr_t rsp, uint64_t error_code)
+{
+	uint64_t *p = (uint64_t *)(rsp + 0x98);
+	printk("do_coprocessor_segment_overrun(9), ERROR_CODE: %ld, RSP: %ld, RIP: %ld\n", error_code, rsp, *p);
+	while(1) {
+        
+    }
+}
+
+void do_invalid_TSS(uintptr_t rsp, uint64_t error_code)
+{
+	uint64_t *p = (uint64_t *)(rsp + 0x98);
+	printk("do_invalid_TSS(10), ERROR_CODE: %ld, RSP: %ld, RIP: %ld\n", error_code, rsp, *p);
+	while(1) {
+        
+    }
+}
+
+void do_segment_not_present(uintptr_t rsp, uint64_t error_code)
+{
+	uint64_t *p = (uint64_t *)(rsp + 0x98);
+	printk("do_segment_not_present(11), ERROR_CODE: %ld, RSP: %ld, RIP: %ld\n", error_code, rsp, *p);
+	while(1) {
+        
+    }
+}
+
+void do_stack_segment_fault(uintptr_t rsp, uint64_t error_code)
+{
+	uint64_t *p = (uint64_t *)(rsp + 0x98);
+	printk("do_stack_segment_fault(12), ERROR_CODE: %ld, RSP: %ld, RIP: %ld\n", error_code, rsp, *p);
+	while(1) {
+        
+    }
+}
+
+void do_general_protection(uintptr_t rsp, uint64_t error_code)
+{
+	uint64_t *p = (uint64_t *)(rsp + 0x98);
+	printk("do_general_protection(13), ERROR_CODE: %ld, RSP: %ld, RIP: %ld\n", error_code, rsp, *p);
+	while(1) {
+        
+    }
+}
+
+void do_page_fault(uintptr_t rsp, uint64_t error_code)
+{
+	uint64_t *p = (uint64_t *)(rsp + 0x98);
+	printk("do_page_fault(14), ERROR_CODE: %ld, RSP: %ld, RIP: %ld\n", error_code, rsp, *p);
+	while(1) {
+        
+    }
+}
+
+void do_reserved(uintptr_t rsp, uint64_t error_code)
+{
+	uint64_t *p = (uint64_t *)(rsp + 0x98);
+	printk("do_reserved(15), ERROR_CODE: %ld, RSP: %ld, RIP: %ld\n", error_code, rsp, *p);
+	while(1) {
+        
+    }
+}
+
+void do_coprocessor_error(uintptr_t rsp, uint64_t error_code)
+{
+	uint64_t *p = (uint64_t *)(rsp + 0x98);
+	printk("do_coprocessor_error(16), ERROR_CODE: %ld, RSP: %ld, RIP: %ld\n", error_code, rsp, *p);
+	while(1) {
+        
+    }
+}
+
+void do_alignment_check(uintptr_t rsp, uint64_t error_code)
+{
+	uint64_t *p = (uint64_t *)(rsp + 0x98);
+	printk("do_alignment_check(17), ERROR_CODE: %ld, RSP: %ld, RIP: %ld\n", error_code, rsp, *p);
+	while(1) {
+        
+    }
+}
+
+void do_machine_check(uintptr_t rsp, uint64_t error_code)
+{
+	uint64_t *p = (uint64_t *)(rsp + 0x98);
+	printk("do_machine_check(18), ERROR_CODE: %ld, RSP: %ld, RIP: %ld\n", error_code, rsp, *p);
+	while(1) {
+        
+    }
+}
+
+void do_SIMD_exception(uintptr_t rsp, uint64_t error_code)
+{
+	uint64_t *p = (uint64_t *)(rsp + 0x98);
+	printk("do_SIMD_exception(19), ERROR_CODE: %ld, RSP: %ld, RIP: %ld\n", error_code, rsp, *p);
+	while(1) {
+        
+    }
+}
+
+void do_virtualization_exception(uintptr_t rsp, uint64_t error_code)
+{
+	uint64_t *p = (uint64_t *)(rsp + 0x98);
+	printk("do_virtualization_exception(20), ERROR_CODE: %ld, RSP: %ld, RIP: %ld\n", error_code, rsp, *p);
+	while(1) {
+        
+    }
 }
 
 void trap_init(void)
 {
-    /* 初始化idt段描述符 */
-    idt_desc_init();
-
-    /* 初始化异常向量 */
-    trap_vector_init();
+    set_trap_gate(0, (uintptr_t)divide_error);
+	set_trap_gate(1, (uintptr_t)debug);
+	set_trap_gate(2, (uintptr_t)nmi);
+	set_system_gate(3, (uintptr_t)int3);
+	set_system_gate(4, (uintptr_t)overflow);
+	set_system_gate(5, (uintptr_t)bounds);
+	set_trap_gate(6, (uintptr_t)invalid_op);
+	set_trap_gate(7, (uintptr_t)device_not_available);
+	set_trap_gate(8, (uintptr_t)double_fault);
+	set_trap_gate(9, (uintptr_t)coprocessor_segment_overrun);
+	set_trap_gate(10, (uintptr_t)invalid_TSS);
+	set_trap_gate(11, (uintptr_t)segment_not_present);
+	set_trap_gate(12, (uintptr_t)stack_segment_fault);
+	set_trap_gate(13, (uintptr_t)general_protection);
+	set_trap_gate(14, (uintptr_t)page_fault);
+	set_trap_gate(15, (uintptr_t)reserved);
+	set_trap_gate(16, (uintptr_t)coprocessor_error);
+	set_trap_gate(17, (uintptr_t)alignment_check);
+	set_trap_gate(18, (uintptr_t)machine_check);
+	set_trap_gate(19, (uintptr_t)SIMD_exception);
+	set_trap_gate(20, (uintptr_t)virtualization_exception);
 }
