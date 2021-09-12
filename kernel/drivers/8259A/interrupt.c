@@ -29,7 +29,7 @@
     "movq    %rax,   %ds;      \n\t" \
     "movq    %rax,   %es;      \n\t"
 
-void ret_from_exception();
+void ret_from_exception(void);
 
 void do_IRQ(uintptr_t rsp, uint64_t nr)
 {

@@ -6,27 +6,27 @@
 #include <system.h>
 #include <printk.h>
 
-void divide_error();
-void debug();
-void nmi();
-void int3();
-void overflow();
-void bounds();
-void invalid_op();
-void device_not_available();
-void double_fault();
-void coprocessor_segment_overrun();
-void invalid_TSS();
-void segment_not_present();
-void stack_segment_fault();
-void general_protection();
-void page_fault();
-void reserved();
-void coprocessor_error();
-void alignment_check();
-void machine_check();
-void SIMD_exception();
-void virtualization_exception();
+void divide_error(void);
+void debug(void);
+void nmi(void);
+void int3(void);
+void overflow(void);
+void bounds(void);
+void invalid_op(void);
+void device_not_available(void);
+void double_fault(void);
+void coprocessor_segment_overrun(void);
+void invalid_TSS(void);
+void segment_not_present(void);
+void stack_segment_fault(void);
+void general_protection(void);
+void page_fault(void);
+void reserved(void);
+void coprocessor_error(void);
+void alignment_check(void);
+void machine_check(void);
+void SIMD_exception(void);
+void virtualization_exception(void);
 
 void do_divide_error(uintptr_t rsp, uint64_t error_code)
 {
@@ -217,7 +217,7 @@ void do_virtualization_exception(uintptr_t rsp, uint64_t error_code)
     }
 }
 
-void trap_init(void)
+void init_trap(void)
 {
     set_trap_gate(0, (uintptr_t)divide_error);
 	set_trap_gate(1, (uintptr_t)debug);

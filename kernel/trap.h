@@ -6,11 +6,11 @@
 #define MAX_IDT_NUM 256
 
 /* 开启中断 */
-static inline void sti()
+static inline void sti(void)
 {
     __asm__ __volatile__ ("sti;hlt":::"memory");
 }
 
-void trap_init(void);
+void init_trap(void);
 
 #endif
