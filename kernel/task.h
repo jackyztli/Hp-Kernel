@@ -2,6 +2,7 @@
 #define __TASK_H__
 
 #include <stdint.h>
+#include <list.h>
 
 /* 任务栈大小32K */
 #define STACK_SIZE (32 * 1024)
@@ -12,6 +13,7 @@
 #define KERNEL_DS 0x10
 
 typedef uint64_t pml4t_t;
+typedef uint64_t pid_t;
 
 enum task_state
 {
@@ -35,12 +37,23 @@ struct mm_struct
     uintptr_t start_code;
     uintptr_t end_code;
     uintptr_t start_data;
-    uintptr_t end_code;
+    uintptr_t end_data;
     uintptr_t start_rodata;
     uintptr_t end_rodate;
     uintptr_t start_brk;
     uintptr_t end_brk;
     uintptr_t start_stack;
+};
+
+/* 任务初始化栈，在首次调用时使用，存放在任务栈最高处 */
+struct pt_regs
+{
+    uint64_t ds;
+    uint64_t es;
+    /* 任务入口 */
+    uint64_t rbx;
+    /* 任务入口参数 */
+    uint64_t rdi;
 };
 
 struct thread_struct
@@ -49,6 +62,9 @@ struct thread_struct
 
     uintptr_t rip;
     uintptr_t rsp;
+    /* 在首次调用switch_to获得cpu资源时，rip指向启动start_kernel_func函数；否则rip指向switch_to的返回值 
+     * rsp首次调用指向任务私有栈开始处，在首次执行启动函数时，该值会赋给rbp寄存器
+    */
 
     uintptr_t fs;
     uintptr_t gs;
@@ -62,7 +78,9 @@ struct thread_struct
 struct task_struct
 {
     /* 任务id */
-    uint64_t pid;
+    pid_t pid;
+
+    struct list task_node;
 
     /* 任务的状态 */
     enum task_state state;
@@ -94,6 +112,9 @@ union task_union
 }__attribute__((aligned(8)));
 
 /* 任务初始化 */
-void init_task(void);
+void setup_task(void);
+
+/* 创建任务入口 */
+pid_t create_task(uint64_t (* func)(void *), void *args);
 
 #endif

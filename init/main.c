@@ -3,6 +3,9 @@
 #include <trap.h>
 #include <memory.h>
 #include <interrupt.h>
+#include <task.h>
+
+uint64_t test(void *args);
 
 void kernel_init(void)
 {
@@ -20,7 +23,19 @@ void kernel_init(void)
     /* 开中断 */
     sti();
 
+    /* 初始化init任务 */
+    setup_task();
+
+    /* 创建测试任务 */
+    create_task(test, "test init...");
+
     while (1) {
 
     }
+}
+
+uint64_t test(void *args)
+{
+    printk("%s\n", (char *)args);
+    return 0;
 }

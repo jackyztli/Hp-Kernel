@@ -42,26 +42,26 @@ void do_IRQ(uintptr_t rsp, uint64_t nr)
 void do_timer(uintptr_t rsp, uintptr_t nr)
 {
     __asm__ volatile(
-        "pushq $0              \n\t" \
+        "pushq $0;              \n\t" \
         SAVE_ALL_ARGS                \
-        "movq %rsp, %rdi       \n\t" \
-        "leaq ret_from_exception(%rip), %rax \n\t" \
-        "pushq %rax             \n\t" \
-        "movq $0x20, %rsi       \n\t" \
-        "jmp  do_IRQ            \n\t"
+        "movq %rsp, %rdi;       \n\t" \
+        "leaq ret_from_exception(%rip), %rax; \n\t" \
+        "pushq %rax;             \n\t" \
+        "movq $0x20, %rsi;       \n\t" \
+        "jmp  do_IRQ;            \n\t"
     );
 }
 
 void do_keyboard(uintptr_t rsp, uintptr_t nr)
 {
     __asm__ volatile(
-        "pushq $0              \n\t" \
-        SAVE_ALL_ARGS                \
-        "movq %rsp, %rdi       \n\t" \
-        "leaq ret_from_exception(%rip), %rax \n\t" \
-        "pushq %rax             \n\t" \
-        "movq $0x21, %rsi       \n\t" \
-        "jmp  do_IRQ            \n\t"
+        "pushq $0;              \n\t" \
+        SAVE_ALL_ARGS                 \
+        "movq %rsp, %rdi;       \n\t" \
+        "leaq ret_from_exception(%rip), %rax; \n\t" \
+        "pushq %rax;            \n\t" \
+        "movq $0x21, %rsi;      \n\t" \
+        "jmp  do_IRQ;           \n\t"
     );
 }
 
