@@ -21,3 +21,21 @@ void add_list_tail(struct list *l, struct list *n)
 
     l->next = n;
 }
+
+bool list_empty(const struct list *l)
+{
+    return (l == NULL) ? true : false;
+}
+
+/* 从列表头部取出一个节点 */
+struct list *list_pop(struct list *l)
+{
+    if (list_empty(l)) {
+        return NULL;
+    }
+
+    struct list *node = l;
+    l = l->next;
+    node->next = NULL;
+    return node;
+}

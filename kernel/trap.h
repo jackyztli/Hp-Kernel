@@ -3,8 +3,6 @@
 
 #include <stdint.h>
 
-#define MAX_IDT_NUM 256
-
 /* 开启中断 */
 static inline void sti(void)
 {

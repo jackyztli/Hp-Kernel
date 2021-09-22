@@ -59,7 +59,8 @@ setup: boot/setup.s
 	$(OBJCOPY) -S -O binary boot/setup output/setup
 
 KERNEL_OBJ = init/head.o init/main.o kernel/printk.o kernel/drivers/console/console.o kernel/drivers/console/font_8x16.o kernel/trap.o \
-			 kernel/trap_entry.o mm/memory.o lib/string.o lib/list.o kernel/drivers/8259A/interrupt.o kernel/task.o
+			 kernel/trap_entry.o mm/memory.o lib/string.o lib/list.o kernel/drivers/8259A/interrupt.o kernel/task.o kernel/syscall.o \
+			 kernel/syscall.o kernel/syscall_entry.o 
 # 内核部分
 kernel: $(KERNEL_OBJ)
 	mkdir -p output

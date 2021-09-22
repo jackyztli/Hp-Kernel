@@ -3,6 +3,7 @@
 #include <io.h>
 #include <trap.h>
 #include <system.h>
+#include <task.h>
 
 #define SAVE_ALL_ARGS                \
     "pushq   %rax;             \n\t" \
@@ -33,6 +34,8 @@ void ret_from_exception(void);
 
 void do_IRQ(uintptr_t rsp, uint64_t nr)
 {
+    schedule();
+
 	printk("do_IRQ: %ld\n", nr);
 	uint8_t x = inb(0x60);
 	printk("key code: %c\n", x);

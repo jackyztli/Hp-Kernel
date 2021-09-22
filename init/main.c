@@ -23,6 +23,9 @@ void kernel_init(void)
     /* 开中断 */
     sti();
 
+    /* 初始化tss */
+    init_tss();
+
     /* 初始化init任务 */
     setup_task();
 

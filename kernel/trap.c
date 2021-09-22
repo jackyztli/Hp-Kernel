@@ -27,6 +27,7 @@ void alignment_check(void);
 void machine_check(void);
 void SIMD_exception(void);
 void virtualization_exception(void);
+void system_call(void);
 
 void do_divide_error(uintptr_t rsp, uint64_t error_code)
 {
@@ -240,4 +241,7 @@ void init_trap(void)
 	set_trap_gate(18, (uintptr_t)machine_check);
 	set_trap_gate(19, (uintptr_t)SIMD_exception);
 	set_trap_gate(20, (uintptr_t)virtualization_exception);
+
+	/* 系统调用 */
+	set_system_gate(0x80, (uintptr_t)system_call);
 }

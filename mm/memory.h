@@ -10,6 +10,10 @@
 #define PAGE_2M_ALIGN_UP(addr) (((uintptr_t)(addr) + PAGE_2M_SIZE - 1) & PAGE_2M_MASK)
 /* 向下2M地址对齐 */
 #define PAGE_2M_ALIGN_DOWN(addr) (((uintptr_t)(addr) >> PAGE_2M_SHIFT) << PAGE_2M_SHIFT)
+
+#define BASE_VIR_ADDR 0xffff800000000000
+#define PhyToVir(addr) (addr + BASE_VIR_ADDR)
+
 void init_mem(void);
 
 /* 申请一片物理页表，大小为2M */

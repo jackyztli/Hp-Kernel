@@ -10,13 +10,18 @@ struct gate_desc {
     uint16_t func_offset_mid_word;
     uint32_t func_offset_high_quad;
     uint32_t reserve;
-};
+} __attribute__((packed));
 
+#define MAX_GDT_NUM 12
+#define MAX_IDT_NUM 256
+/* GDT描述符 */
+extern struct gate_desc gdt64[MAX_GDT_NUM];
+/* IDT描述符 */
 extern struct gate_desc idt64[MAX_IDT_NUM];
 
 static inline void make_idt_desc(uint8_t n, uint16_t attr, uint16_t selector, uintptr_t trap_func)
 {
-    /* 在64位系统上，段描述符占8个字节，其结构如下：
+    /* 在64位系统上，段描述符占16个字节，其结构如下：
      *  127                                         96                                          64
      *  -----------------------------------------------------------------------------------------
      *  |                   预留                     |               处理函数高32位               |
@@ -56,6 +61,12 @@ static inline void set_system_gate(uint32_t n, uintptr_t trap_func)
 {
     /* P=1、DPL=3、TYPE=F */
     make_idt_desc(n, 0xEF00, 0x8, trap_func);
+}
+
+/* 加载TSS选择子 */
+static inline void load_tr(uint16_t n)
+{
+    __asm__ volatile("ltr %%ax" : :"a"(n << 3) :"memory");
 }
 
 #endif

@@ -48,12 +48,30 @@ struct mm_struct
 /* 任务初始化栈，在首次调用时使用，存放在任务栈最高处 */
 struct pt_regs
 {
-    uint64_t ds;
-    uint64_t es;
-    /* 任务入口 */
-    uint64_t rbx;
-    /* 任务入口参数 */
-    uint64_t rdi;
+	uint64_t r15;
+	uint64_t r14;
+	uint64_t r13;
+	uint64_t r12;
+	uint64_t r11;
+	uint64_t r10;
+	uint64_t r9;
+	uint64_t r8;
+	uint64_t rbx;
+	uint64_t rcx;
+	uint64_t rdx;
+	uint64_t rsi;
+	uint64_t rdi;
+	uint64_t rbp;
+	uint64_t ds;
+	uint64_t es;
+	uint64_t rax;
+	uint64_t func;
+	uint64_t errcode;
+	uint64_t rip;
+	uint64_t cs;
+	uint64_t rflags;
+	uint64_t rsp;
+	uint64_t ss;
 };
 
 struct thread_struct
@@ -111,10 +129,44 @@ union task_union
     uint64_t stack[STACK_BYTES];
 }__attribute__((aligned(8)));
 
+/* TSS定义 */
+struct tss_struct
+{
+	uint32_t reserved0;
+	uint64_t rsp0;
+	uint64_t rsp1;
+	uint64_t rsp2;
+	uint64_t reserved1;
+	uint64_t ist1;
+	uint64_t ist2;
+	uint64_t ist3;
+	uint64_t ist4;
+	uint64_t ist5;
+	uint64_t ist6;
+	uint64_t ist7;
+	uint64_t reserved2;
+	uint16_t reserved3;
+	uint16_t iomapbaseaddr;
+}__attribute__((packed));
+
+static inline struct task_struct *get_current(void)
+{
+    struct task_struct *current = NULL;
+    __asm__ volatile("andq %%rsp, %0" :"=r"(current) :"0"(~32767UL));
+    return current;
+}
+
+#define current get_current()
+
 /* 任务初始化 */
 void setup_task(void);
+/* tss初始化 */
+void init_tss(void);
 
 /* 创建任务入口 */
 pid_t create_task(uint64_t (* func)(void *), void *args);
+
+/* 任务调度 */
+void schedule(void);
 
 #endif
