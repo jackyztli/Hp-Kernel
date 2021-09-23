@@ -11,6 +11,8 @@
 /* 段选择子宏定义 */
 #define KERNEL_CS 0x08
 #define KERNEL_DS 0x10
+#define USER_CS 0x28
+#define USER_DS 0x30
 
 typedef uint64_t pml4t_t;
 typedef uint64_t pid_t;
@@ -26,6 +28,7 @@ enum task_state
 enum task_flag
 {
     TASK_KERNEL,
+    TASK_USER,
 };
 
 struct mm_struct
@@ -168,5 +171,8 @@ pid_t create_task(uint64_t (* func)(void *), void *args);
 
 /* 任务调度 */
 void schedule(void);
+
+/* 创建进程 */
+pid_t do_fork(const struct pt_regs *regs);
 
 #endif

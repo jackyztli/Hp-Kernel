@@ -9,3 +9,14 @@ void memset(void *s, int8_t c, size_t n)
         ps++;
     }
 }
+
+void memcpy(void *dst, void *src, size_t n)
+{
+    uint8_t *pdst = (uint8_t *)dst;
+    uint8_t *psrc = (uint8_t *)src;
+    while (n--) {
+        *pdst = *psrc;
+        pdst++;
+        psrc++;
+    }
+}

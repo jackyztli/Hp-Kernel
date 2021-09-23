@@ -108,7 +108,7 @@ void kernel_thread_start(void)
 }
 
 /* 创建任务入口 */
-pid_t create_task(uint64_t (* func)(void *), void *args)
+pid_t do_fork(const struct pt_regs *regs)
 {
     uintptr_t page = PhyToVir(alloc_page());
     if (page == NULL) {
@@ -117,36 +117,34 @@ pid_t create_task(uint64_t (* func)(void *), void *args)
     } 
 
     union task_union *new_union = (union task_union *)page;
+    memcpy(new_union, current, sizeof(task_union));
     struct task_struct *new_task = &new_union->task;
     new_task->pid = alloc_task_pid();
     new_task->task_node.next = NULL;
     new_task->state = TASK_RUNNING;
-    new_task->flag = TASK_KERNEL;
+    new_task->flag = TASK_USER;
 
     new_task->mm = (struct mm_struct *)((uintptr_t)new_task + sizeof(struct task_struct));
     new_task->thread = (struct thread_struct *)((uintptr_t)new_task->mm + sizeof(struct mm_struct));
     new_task->thread->rsp0 = (uintptr_t)new_task + STACK_BYTES;
     new_task->thread->rip = (uintptr_t)ret_system_call;
     new_task->thread->rsp = (uintptr_t)new_task + STACK_BYTES - sizeof(struct pt_regs);
-    new_task->thread->fs = KERNEL_DS;
-    new_task->thread->gs = KERNEL_DS;
+    new_task->thread->fs = USER_DS;
+    new_task->thread->gs = USER_DS;
     new_task->thread->cr2 = 0;
     new_task->thread->trap_nr = 0;
     new_task->thread->error_code = 0;
 
-    new_task->counter = 1;
+    new_task->counter = new_task->priority;
     new_task->signal = 0;
-    new_task->priority = 15;
-
-    struct pt_regs *new_pt_regs = (struct pt_regs *)new_task->thread->rsp;
-    new_pt_regs->ds = KERNEL_DS;
-    new_pt_regs->es = KERNEL_DS;
-    new_pt_regs->rbx = (uintptr_t)func;
-    new_pt_regs->rdi = (uintptr_t)args;
 
     add_list_tail(ready_task_list, &new_task->task_node);
 
-    return 0;
+    /* 父进程返回子进程pid，子进程返回0 */
+    struct pt_regs *new_regs = (struct pt_regs *)new_task->thread->rsp;
+    new_regs->rax = 0;
+    
+    return new_task->pid;
 }
 
 /* 创建tss段描述符 */
