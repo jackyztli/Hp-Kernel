@@ -4,6 +4,7 @@
 #include <memory.h>
 #include <interrupt.h>
 #include <task.h>
+#include <syscall.h>
 
 uint64_t test(void *args);
 
@@ -30,7 +31,18 @@ void kernel_init(void)
     setup_task();
 
     /* 创建测试任务 */
-    create_task(test, "test init...");
+    pid_t pid = fork();
+    if (pid < 0) {
+        printk("fork error\n");
+        while (1) {
+
+        }
+    } else if (pid == 0) {
+        printk("in child process\n");
+        while(1) {
+
+        }
+    }
 
     while (1) {
 

@@ -166,9 +166,6 @@ void setup_task(void);
 /* tss初始化 */
 void init_tss(void);
 
-/* 创建任务入口 */
-pid_t create_task(uint64_t (* func)(void *), void *args);
-
 /* 任务调度 */
 void schedule(void);
 

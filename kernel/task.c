@@ -5,6 +5,7 @@
 #include <system.h>
 #include <syscall.h>
 #include <list.h>
+#include <string.h>
 
 /* init任务，当前只支持单CPU，后续适配多CPU */
 union task_union init_task;
@@ -81,14 +82,14 @@ uint64_t do_exit(uint64_t code)
 void kernel_thread_start(void)
 {
     __asm__ volatile (
-        "popq %15;"                \
-        "popq %14;"                \
-        "popq %13;"                \
-        "popq %12;"                \
-        "popq %11;"                \
-        "popq %10;"                \
-        "popq %9;"                 \
-        "popq %8;"                 \
+        "popq %r15;"                \
+        "popq %r14;"                \
+        "popq %r13;"                \
+        "popq %r12;"                \
+        "popq %r11;"                \
+        "popq %r10;"                \
+        "popq %r9;"                 \
+        "popq %r8;"                 \
         "popq %rbx;"               \
         "popq %rcx;"               \
         "popq %rdx;"               \
@@ -116,8 +117,8 @@ pid_t do_fork(const struct pt_regs *regs)
         return -1;
     } 
 
-    union task_union *new_union = (union task_union *)page;
-    memcpy(new_union, current, sizeof(task_union));
+    union task_union *new_union = (union task_union *)(void *)page;
+    memcpy(new_union, current, sizeof(union task_union));
     struct task_struct *new_task = &new_union->task;
     new_task->pid = alloc_task_pid();
     new_task->task_node.next = NULL;
@@ -174,11 +175,11 @@ void init_tss(void)
     /* 基础地址23:16 */
     low_tss_desc += (((uintptr_t)&tss & 0xff0000) << 32);
     /* 属性值 */
-    low_tss_desc += (0x8b << 40);
+    low_tss_desc += ((uint64_t)0x8b << 40);
     /* 段界限19:16 */
     low_tss_desc += ((sizeof(tss) & 0x0f0000) << 48);
     /* 属性值 */
-    low_tss_desc += (8 << 52);
+    low_tss_desc += ((uint64_t)8 << 52);
     /* 基础地址31:24 */
     low_tss_desc += (((uintptr_t)&tss & 0xff000000) << 56);
 
@@ -186,8 +187,9 @@ void init_tss(void)
     uint64_t high_tss_desc = 0;
     high_tss_desc += ((uintptr_t)&tss & 0xffffffff);
 
-    *(uint64_t *)gdt64[TSS_SECTOR] = low_tss_desc;
-    *((uint64_t *)gdt64[TSS_SECTOR] + 1) = high_tss_desc;
+    uint64_t *tss_desc = (uint64_t *)&gdt64[TSS_SECTOR];
+    *tss_desc = low_tss_desc;
+    *(tss_desc + 1) = high_tss_desc;
 
     /* 加载TSS选择子 */
     load_tr(TSS_SECTOR);

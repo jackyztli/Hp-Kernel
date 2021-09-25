@@ -33,6 +33,7 @@ system_call:
 	callq	system_call_function
 
 .globl ret_system_call
+ret_system_call:
     movq	%rax,	0x80(%rsp)		 
 	popq	%r15				 
 	popq	%r14				 	
